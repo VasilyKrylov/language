@@ -1,0 +1,21 @@
+#undef cN
+#undef cL
+#undef cR
+
+#undef dL
+#undef dR
+
+#undef NUM_
+#undef CONNECT_
+#undef IF_
+#undef ASSIGN_
+#undef ADD_
+#undef SUB_
+#undef MUL_
+#undef DIV_
+#undef POW_
+#undef LN_
+#undef SIN_
+#undef COS_
+#undef SH_
+#undef CH_

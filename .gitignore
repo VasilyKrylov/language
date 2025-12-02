@@ -1,0 +1,7 @@
+program
+lang
+tmp*
+a.out
+dump/*
+.vscode/*
+tree.txt

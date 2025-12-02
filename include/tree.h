@@ -1,0 +1,151 @@
+#ifndef K_TREE_H
+#define K_TREE_H
+
+#include <stdio.h>
+
+#include "tree_log.h"
+#include "debug.h"
+
+typedef union value_t treeDataType;
+
+const char ktreeSaveFileName[]       = "tree.txt";
+
+#define TREE_DO_AND_RETURN(action)          \
+        do                                  \
+        {                                   \
+            int statusMacro = action;       \
+            DEBUG_VAR("%d", statusMacro);   \
+                                            \
+            if (statusMacro != TREE_OK)     \
+                return statusMacro;         \
+        } while (0)                       
+
+#define TREE_DO_AND_CLEAR(action, clearAction)      \
+        do                                          \
+        {                                           \
+            int status = action;                    \
+            DEBUG_VAR("%d", status);                \
+                                                    \
+            if (status != TREE_OK)                  \
+            {                                       \
+                clearAction;                        \
+                                                    \
+                return status;                      \
+            }                                       \
+        } while (0)
+
+#define NODE_CTOR(tree, node)                       \
+        node = NodeCtor (tree);                     \
+        if (node == NULL)                           \
+            return TREE_ERROR_CREATING_NODE
+
+#ifdef PRINT_DEBUG
+
+struct varInfo_t
+{
+    const char *name = NULL;
+    const char *file = NULL;
+    int line         = 0;
+    const char *func = NULL;
+};
+// NOTE Change name to VarInfoTree_t (?)
+#define TREE_CTOR(treeName, log)                    \
+        TreeCtor (treeName, log,                    \
+                 varInfo_t{.name = #treeName,       \
+                           .file = __FILE__,        \
+                           .line = __LINE__,        \
+                           .func = __func__})
+
+#define TREE_DUMP(program, treeName, format, ...)      \
+        TreeDump (program, treeName,                   \
+                  __FILE__, __LINE__, __func__,     \
+                  format, __VA_ARGS__)
+
+#define NODE_DUMP(program, nodeName, format, ...)      \
+        NodeDump (program, nodeName,                   \
+                  __FILE__, __LINE__, __func__,     \
+                  format, __VA_ARGS__)
+
+#define TREE_VERIFY(tree) TreeVerify (tree) 
+#else
+
+#define TREE_CTOR(treeName, log) TreeCtor (treeName, log) 
+#define TREE_VERIFY(tree) TREE_OK;
+#define TREE_DUMP(program, tree, format, ...) 
+#define NODE_DUMP(program, node, format, ...) 
+
+#endif // PRING_DEBUG
+
+enum type_t // NOTE: maybe move to tree_ast.h
+{
+    TYPE_UKNOWN         = 0,
+    TYPE_CONST_NUM      = 1,
+    TYPE_MATH_OPERATION = 2,
+    TYPE_VARIABLE       = 3
+}; 
+
+union value_t
+{
+    double number;
+    size_t idx;
+};
+
+struct node_t
+{
+    type_t type = TYPE_UKNOWN;
+    treeDataType value;
+
+    // node_t *parent = NULL; FIXME: add parents
+    node_t *left  = NULL;
+    node_t *right = NULL;
+};
+
+struct tree_t
+{
+    node_t *root = NULL;
+
+    size_t size = 0;
+
+    treeLog_t *log = NULL;
+
+#ifdef PRINT_DEBUG
+    varInfo_t varInfo = {};
+#endif
+};
+
+enum treeError_t
+{
+    TREE_OK                             = 0,
+    TREE_ERROR_NULL_STRUCT              = 1 << 0,
+    TREE_ERROR_NULL_ROOT                = 1 << 1,
+    TREE_ERROR_NULL_DATA                = 1 << 2, // NOTE: remove(?)
+    TREE_ERROR_NOT_ENOUGH_NODES         = 1 << 3,
+    TREE_ERROR_TO_MUCH_NODES            = 1 << 4,
+    TREE_ERROR_LOAD_INTO_NOT_EMPTY      = 1 << 5,
+    TREE_ERROR_INVALID_NODE             = 1 << 6,
+    TREE_ERROR_INVALID_PATH             = 1 << 7, // bad value on stackNodePath
+    TREE_ERROR_CREATING_NODE            = 1 << 8,
+    TREE_ERROR_SYNTAX_IN_SAVE_FILE      = 1 << 9,
+    TREE_ERROR_NODE_NOT_FOUND           = 1 << 11,
+
+    TREE_ERROR_COMMON                   = 1 << 31
+};
+
+int TreeCtor            (tree_t *tree, treeLog_t *log
+                         ON_DEBUG (, varInfo_t varInfo));
+node_t *NodeCtor        (tree_t *tree);
+void NodeFill           (node_t *node, type_t type, treeDataType value, 
+                         node_t *leftChild, node_t *rightChild);
+node_t *NodeCtorAndFill (tree_t *tree,
+                         type_t type, treeDataType value, 
+                         node_t *leftChild, node_t *rightChild);
+void TreeDelete         (tree_t *tree, node_t **node);
+void TreeDtor           (tree_t *tree);
+void TreeCopy           (tree_t *source, tree_t *dest);
+node_t *NodeCopy        (node_t *source, tree_t *tree);
+int TreeVerify          (tree_t *tree);
+bool IsLeaf             (node_t *node);
+bool HasBothChildren    (node_t *node);
+bool HasOneChild        (node_t *node);
+
+#endif //K_TREE_H
