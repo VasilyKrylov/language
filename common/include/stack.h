@@ -67,8 +67,8 @@ enum stackErrors
     DATA_CANARY_END_OVERWRITE       = 1 << 7,
     POISON_VALUE_IN_DATA            = 1 << 8,
     WRONG_VALUE_IN_POISON           = 1 << 9,
-    TRYING_TO_POP_FROM_EMPTY_STACK  = 1 << 10,
-    TRYING_TO_TOP_FROM_EMPTY_STACK  = 1 << 11
+    TRYING_TO_PKEY_FROM_EMPTY_STACK  = 1 << 10,
+    TRYING_TO_TKEY_FROM_EMPTY_STACK  = 1 << 11
 };
 
 void StackPrintError    (int error);

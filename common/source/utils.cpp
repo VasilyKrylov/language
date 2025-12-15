@@ -62,6 +62,9 @@ ssize_t GetFileSize (const char *fileName)
 // content[fileSize] = '\0'
 char *ReadFile (const char *inputFileName, size_t *bufferLen)
 {
+    assert (inputFileName);
+    assert (bufferLen);
+    
     FILE *inputFile = fopen (inputFileName, "r");
     if (inputFile == NULL)
     {
@@ -111,6 +114,29 @@ char *SkipSpaces (char *buffer)
     while (isspace (*buffer))
     {
         DEBUG_LOG ("%d - '%c'", *buffer, *buffer);
+        buffer++;
+    }
+
+    return buffer;
+}
+
+char *SkipSpacesAndCount (char *buffer, size_t *line, size_t *position)
+{
+    assert (buffer);
+    assert (line);
+    assert (position);
+
+    while (isspace (*buffer))
+    {
+        DEBUG_CHR (*buffer);
+
+        if (*buffer == '\n')
+        {
+            (*line)++;
+            *position = 0;
+        }
+
+        (*position)++;
         buffer++;
     }
 

@@ -59,7 +59,7 @@ void StackPrintError (int error)
     if (error & DATA_CANARY_END_OVERWRITE)	    printf("%s", "End of the data field has been overwritten\n");
     if (error & POISON_VALUE_IN_DATA)	        printf("%s", "There is poison value in stack\n");
     if (error & WRONG_VALUE_IN_POISON)	        printf("%s", "There is NOT poison value in unused section of stack\n");
-    if (error & TRYING_TO_POP_FROM_EMPTY_STACK)	printf("%s", "Stack is empty, but StackPop() called\n");
+    if (error & TRYING_TO_PKEY_FROM_EMPTY_STACK)	printf("%s", "Stack is empty, but StackPop() called\n");
 
     printf("%s", COLOR_END);
 }
@@ -210,7 +210,7 @@ int StackPop (stack_t *stack, stackDataType *value)
         return error;
 
     if (stack->size == 0)
-        return TRYING_TO_POP_FROM_EMPTY_STACK;
+        return TRYING_TO_PKEY_FROM_EMPTY_STACK;
 
     if (stack->size * 4 <= stack->capacity)
     {
@@ -247,7 +247,7 @@ int StackTop (stack_t *stack, stackDataType *value)
         return error;
 
     if (stack->size == 0)
-        return TRYING_TO_TOP_FROM_EMPTY_STACK;
+        return TRYING_TO_TKEY_FROM_EMPTY_STACK;
 
     *value = stack->data[stack->size - 1];
     

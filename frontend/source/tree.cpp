@@ -65,7 +65,7 @@ node_t *NodeCtorAndFill (tree_t *tree,
                          node_t *leftChild, node_t *rightChild)
 {
     assert (tree);
-    // leftChild can be NULL
+    // childrean can be NULL
 
     DEBUG_PRINT ("%s", "\n========== NODE CTOR START ==========\n");
 
@@ -85,7 +85,7 @@ node_t *NodeCtorAndFill (tree_t *tree,
 
     if (type == TYPE_CONST_NUM)
     {
-        DEBUG_LOG ("\t value.number = %g", value.number);
+        DEBUG_LOG ("\t value.number = " VALUE_NUMBER_FSTRING, value.number);
     }
     else 
     {

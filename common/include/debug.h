@@ -34,7 +34,7 @@ enum commonErrors
     COMMON_ERROR_WRITE_TO_FILE          = 1 << 6,
     COMMON_ERROR_CREATING_FILE          = 1 << 7,
     COMMON_ERROR_WRONG_USER_INPUT       = 1 << 8,
-    COMMON_ERROR_SNPRINTF               = 1 << 9,
+    COMMON_ERROR_SSCANF                 = 1 << 9,
     COMMON_ERROR_RUNNING_SYSTEM_COMMAND = 1 << 10 // TODO: add text messages
 };
 
@@ -86,13 +86,13 @@ enum commonErrors
 
 #define PRINT(format, ...)                                                              \
         printf (GREEN_BOLD_COLOR format COLOR_END, ##__VA_ARGS__)
+
 #define ERROR_LOG(format, ...)                                                          \
         fprintf (stderr, RED_BOLD_COLOR "[ERROR] %s:%d:%s(): " format "\n" COLOR_END,   \
-                 __FILE__, __LINE__, __func__, __VA_ARGS__)                             \
-        ON_DEBUG (; getchar())
+                 __FILE__, __LINE__, __func__, __VA_ARGS__)
+
 #define ERROR_PRINT(format, ...)                                                        \
-        fprintf (stderr, RED_BOLD_COLOR format "\n" COLOR_END, __VA_ARGS__)             \
-        ON_DEBUG (; getchar())
+        fprintf (stderr, RED_BOLD_COLOR format "\n" COLOR_END, __VA_ARGS__)
 
 void PrintCommonError (int error);
 

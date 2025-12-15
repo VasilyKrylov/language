@@ -1,48 +1,48 @@
-#define cN NodeCopy (expression,         resTree)
-#define cL NodeCopy (expression->left,   resTree)
-#define cR NodeCopy (expression->right,  resTree)
+#define cN NodeCopy (ast,         resTree)
+#define cL NodeCopy (ast->left,   resTree)
+#define cR NodeCopy (ast->right,  resTree)
 
-#define dL Nodeprogram (program, expression->left,  resTree, argument)
-#define dR Nodeprogram (program, expression->right, resTree, argument)
+#define dL NodeDiff (program, ast->left,  &program->ast, argument)
+#define dR NodeDiff (program, ast->right, &program->ast, argument)
 
 #define NUM_(num)                                                                       \
-        NodeCtorAndFill (resTree, TYPE_CONST_NUM, {.number = num}, NULL, NULL)
+        NodeCtorAndFill (&program->ast, TYPE_CONST_NUM, {.number = num}, NULL, NULL)
 #define CONNECT_(left, right)                                                           \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_CONNECT},             \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_CONNECT},             \
                          left, right)
 #define ADD_(left, right)                                                               \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_ADD},                 \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_ADD},                 \
                          left, right)
 #define ASSIGN_(left, right)                                                            \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_ASSIGN},              \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_ASSIGN},              \
                          left, right)
 #define IF_(left, right)                                                                \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_IF},                  \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_IF},                  \
                          left, right)
 #define SUB_(left, right)                                                               \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_SUB},                 \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_SUB},                 \
                          left, right)
 #define MUL_(left, right)                                                               \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_MUL},                 \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_MUL},                 \
                          left, right)
 #define DIV_(left, right)                                                               \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_DIV},                 \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_DIV},                 \
                          left, right)
 #define POW_(left, right)                                                               \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_POW},                 \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_POW},                 \
                          left, right)
 #define LN_(right)                                                                      \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_LN},                  \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_LN},                  \
                          NULL, right)
 #define SIN_(right)                                                                     \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_SIN},                 \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_SIN},                 \
                          NULL, right)
 #define COS_(right)                                                                     \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_COS},                 \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_COS},                 \
                          NULL, right)
 #define SH_(right)                                                                      \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_SH},                  \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_SH},                  \
                          NULL, right)
 #define CH_(right)                                                                      \
-        NodeCtorAndFill (resTree, TYPE_MATH_OPERATION, {.idx = OP_CH},                  \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_CH},                  \
                          NULL, right)

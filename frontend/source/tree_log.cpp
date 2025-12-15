@@ -202,7 +202,7 @@ int TreeDumpImg (program_t *program, node_t *node)
 //     {
 //         case TYPE_UKNOWN:           fprintf (graphFile, "%g", node->value.number);                      break;
 //         case TYPE_CONST_NUM:        fprintf (graphFile, "%g", node->value.number);                      break;
-//         case TYPE_MATH_OPERATION:   fprintf (graphFile, "%s", keywords[idx].name);                     break;
+//         case TYPE_KEYWORD:   fprintf (graphFile, "%s", kKeywords[idx].name);                     break;
         // case TYPE_VARIABLE:         fprintf (graphFile, "%.*s", 
         //                                      (int) program->variables[idx].len, 
         //                                      program->variables[idx].name);                    break;
@@ -254,27 +254,25 @@ void TreePrefixPass (program_t *program, node_t *node, FILE *graphFile)
     {
         case TYPE_UKNOWN:           fprintf (graphFile, "\"%s\";", kGray);      break;
         case TYPE_CONST_NUM:        fprintf (graphFile, "\"%s\";", kBlue);      break;
-        case TYPE_MATH_OPERATION:   if (keyword->isFunction)
+        case TYPE_KEYWORD:          if (keyword->isFunction)
                                         fprintf (graphFile, "\"%s\";", kYellow);
                                     else
                                         fprintf (graphFile, "\"%s\"", kGreen);  
                                     break;
         case TYPE_VARIABLE:         fprintf (graphFile, "\"%s\";", kViolet);    break;
-        default:                    fprintf (graphFile, "\"%s\";", kRed);      break;
+        default:                    fprintf (graphFile, "\"%s\";", kRed);       break;
     }
-
-    variable_t *var = FindVariableByIdx (program, (size_t) node->value.idx);
 
     fprintf (graphFile, " label = \" {");
 
-    switch (node->type)
-    {
-        case TYPE_UKNOWN:           fprintf (graphFile, "%g", node->value.number);          break;
-        case TYPE_CONST_NUM:        fprintf (graphFile, "%g", node->value.number);          break;
-        case TYPE_MATH_OPERATION:   fprintf (graphFile, "%s", keyword->name);               break;
-        case TYPE_VARIABLE:         fprintf (graphFile, "%.*s", (int)var->len, var->name);  break;
-        default:                    fprintf (graphFile, "error");                           break;
-    }
+    PrintNode (graphFile, program, node);
+
+#ifdef GRAPH_DETAILED
+
+    fprintf (graphFile, " | ptr = [%p] | left = [%p] | right = [%p]", 
+                        node, node->left, node->right);
+
+#endif
 
     fprintf (graphFile, " }\"];\n");
 
@@ -286,7 +284,7 @@ void TreePrefixPass (program_t *program, node_t *node, FILE *graphFile)
     {
         DEBUG_LOG ("\t %p->%p\n", node, node->left);
 
-        fprintf (graphFile, "\tnode%p->node%p\n", node, node->left);
+        fprintf (graphFile, "\tnode%p->node%p[label=\"l\"]\n", node, node->left);
         
         TreePrefixPass (program, node->left, graphFile);
     }    
@@ -295,7 +293,7 @@ void TreePrefixPass (program_t *program, node_t *node, FILE *graphFile)
     {
         DEBUG_LOG ("\t %p->%p\n", node, node->left);
 
-        fprintf (graphFile, "\tnode%p->node%p\n", node, node->right);
+        fprintf (graphFile, "\tnode%p->node%p[label=\"r\"]\n", node, node->right);
         
         TreePrefixPass (program, node->right, graphFile);
     }

@@ -80,13 +80,16 @@ enum type_t // NOTE: maybe move to tree_ast.h
 {
     TYPE_UKNOWN         = 0,
     TYPE_CONST_NUM      = 1,
-    TYPE_MATH_OPERATION = 2,
-    TYPE_VARIABLE       = 3
-}; 
+    TYPE_KEYWORD        = 2,
+    TYPE_VARIABLE       = 3,
+};
+
+typedef int valueNumber_t;
+#define VALUE_NUMBER_FSTRING "%d"
 
 union value_t
 {
-    double number;
+    valueNumber_t number;
     size_t idx;
 };
 
@@ -123,10 +126,10 @@ enum treeError_t
     TREE_ERROR_TO_MUCH_NODES            = 1 << 4,
     TREE_ERROR_LOAD_INTO_NOT_EMPTY      = 1 << 5,
     TREE_ERROR_INVALID_NODE             = 1 << 6,
-    TREE_ERROR_INVALID_PATH             = 1 << 7, // bad value on stackNodePath
-    TREE_ERROR_CREATING_NODE            = 1 << 8,
-    TREE_ERROR_SYNTAX_IN_SAVE_FILE      = 1 << 9,
-    TREE_ERROR_NODE_NOT_FOUND           = 1 << 11,
+    TREE_ERROR_CREATING_NODE            = 1 << 7,
+    TREE_ERROR_SYNTAX_IN_SAVE_FILE      = 1 << 8,
+    TREE_ERROR_NODE_NOT_FOUND           = 1 << 9,
+    TREE_ERROR_INVALID_TOKEN            = 1 << 10,
 
     TREE_ERROR_COMMON                   = 1 << 31
 };

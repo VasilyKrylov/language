@@ -1,3 +1,7 @@
+/*
+    You can make dump more detailed by using "-D GRAPH_DETAILED"
+*/
+
 #ifndef K_TREE_LOG_H
 #define K_TREE_LOG_H
 

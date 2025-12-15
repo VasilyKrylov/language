@@ -8,5 +8,6 @@ void ClearBuffer    ();
 char *SkipSpaces    (char *buffer);
 char *ReadFile      (const char *inputFileName, size_t *bufferLen);
 int SafeReadLine    (char **str, size_t *len);
+char *SkipSpacesAndCount (char *buffer, size_t *line, size_t *position);
 
 #endif // K_UTILS_H
