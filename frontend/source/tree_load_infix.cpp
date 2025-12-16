@@ -24,7 +24,7 @@ Gramma      ::= Operation+ '\0'
 
 Operation   ::=  {If | '{' Opeartion+ '}' | Declarate | Assign} 
 If          ::= "if"  '(' E ')' Operation 
-Declarate   ::= Variable  ':=' PrimaryExp ';'
+Declarate   ::= Variable  ":=" PrimaryExp ';'
 Assign      ::= Variable   '=' PrimaryExp ';'
 
 Expression  ::= Term        {['+', '-']  Term}* 
@@ -37,7 +37,42 @@ Number      ::= ['0'-'9']+{'.'['0'-'9']+}?
 Function    ::= ["sin", "cos", ...]  '(' Expression ')' | 
                 ["log"]  '(' Expression ',' Expression')'
 Variable    ::= ['a'-'z', 'A'-'Z', '_']['a'-'z', 'A'-'Z', '0'-'9', '_']*
-/
+
+
+
+
+Examples+ = 
+{
+"панч про_макана()
+йоу
+    а стал 8 тррря
+    раунд
+эй
+
+зачитать панч про_макана()"
+}
+
+Gramma              ::= Operation+ '\0'
+Operation           ::=  {If | "йоу" Opeartion+ "эй" | DeclarateOrAssign | Print} 
+If                  ::= "биф"  '(' E ')' Operation 
+Print               ::= "зачитать" '(' Expression ')' "тррря"
+DeclarateOrAssign   ::= "мс " Variable  {"представься" | "стал"} PrimaryExp "тррря"
+
+Function            ::= "панч" FuncName "()" "йоу" Operation+ "раунд" "эй"          // FIXME: use Function
+FuncName            ::= ['a'-'z', 'A'-'Z', '_']['a'-'z', 'A'-'Z', '0'-'9', '_']*
+
+Expression          ::= Term        {['фит', 'дисс']        Term}* 
+Term                ::= Power       {['антихайп', 'хайп']  Power}*
+Power               ::= PrimaryExp  {'^'  PrimaryExp}* 
+PrimaryExp          ::=  {'('  Expression ')' | Number | Function | Variable} 
+
+Number              ::= ['0'-'9']+{'.'['0'-'9']+}?
+Function            ::= "спросить" '('  ')' |
+                        ["sin", "cos", ...]  '(' Expression ')' | // Not implemented now
+                        ["log"]  '(' Expression ',' Expression')'
+
+Variable            ::= ['a'-'z', 'A'-'Z', '_']['a'-'z', 'A'-'Z', '0'-'9', '_']*
+
 */
 
 #define SYNTAX_ERROR                                                    \
@@ -55,7 +90,11 @@ static int GetOperation         (program_t *program, tokensArray_t *tokens,
                                  size_t *curToken, node_t **node);
 static int GetIf                (program_t *program, tokensArray_t *tokens, 
                                  size_t *curToken, node_t **node);
-static int GetAssign            (program_t *program, tokensArray_t *tokens, 
+// static int GetAssign            (program_t *program, tokensArray_t *tokens, 
+//                                  size_t *curToken, node_t **node);
+static int GetDeclarateOrAssign (program_t *program, tokensArray_t *tokens, 
+                                size_t *curToken, node_t **node);
+static int GetPrint             (program_t *program, tokensArray_t *tokens, 
                                  size_t *curToken, node_t **node);
 static int GetExpression        (program_t *program, tokensArray_t *tokens, 
                                  size_t *curToken, node_t **node);
@@ -66,8 +105,8 @@ static int GetPower             (program_t *program, tokensArray_t *tokens,
 static int GetPrimaryExpression (program_t *program, tokensArray_t *tokens, 
                                  size_t *curToken, node_t **node);
 static int GetVariable          (program_t *program, tokensArray_t *tokens, 
-                                 size_t *curToken, node_t **node);
-
+                                 size_t *curToken, node_t **node, 
+                                 bool reportErrors);
 static int GetFunction          (program_t *program, tokensArray_t *tokens, 
                                  size_t *curToken, node_t **node);
 // static int GetVariableName      (char **curPos);
@@ -193,7 +232,11 @@ int GetOperation (program_t *program, tokensArray_t *tokens, size_t *curToken, n
         return TREE_OK;
     }
 
-    int status = GetAssign (program, tokens, curToken, node);
+    int status = GetDeclarateOrAssign (program, tokens, curToken, node);
+    if (status == TREE_OK)
+        return TREE_OK;
+
+    status = GetPrint (program, tokens, curToken, node);
     if (status != TREE_OK)
         SYNTAX_ERROR;
     
@@ -240,22 +283,64 @@ int GetIf (program_t *program, tokensArray_t *tokens, size_t *curToken, node_t *
 }
 
 
-int GetAssign (program_t *program, tokensArray_t *tokens, size_t *curToken, node_t **node)
+// int GetAssign (program_t *program, tokensArray_t *tokens, size_t *curToken, node_t **node)
+// {
+//     assert (program);
+//     assert (tokens);
+//     assert (curToken);
+//     assert (node);
+    
+//     // if (strncmp ("MC ", *curPos, 3) != )
+
+//     node_t *nodeL = NULL;
+// DEBUG_VAR ("%lu", *curToken);
+
+//     int status = GetVariable (program, tokens, curToken, &nodeL, true);
+//     if (status != TREE_OK)
+//         SYNTAX_ERROR;
+        
+//     DEBUG_VAR ("%lu", *curToken);
+
+//     if (!IS_TOKEN_KEYWORD (KEY_ASSIGN))
+//         SYNTAX_ERROR;
+
+//     (*curToken)++;
+
+//     node_t *nodeR = NULL;
+//     status = GetExpression (program, tokens, curToken, &nodeR);
+//     if (status != TREE_OK)
+//         SYNTAX_ERROR;
+
+//     if (!IS_TOKEN_KEYWORD (KEY_CONNECT))
+//         SYNTAX_ERROR;
+    
+//     (*curToken)++;
+    
+//     *node = ASSIGN_ (nodeL, nodeR);
+
+//     NODE_DUMP (program, *node, "Created new node (assign). curToken = %lu", *curToken);
+
+//     return TREE_OK;
+// }
+
+
+int GetDeclarateOrAssign (program_t *program, tokensArray_t *tokens, size_t *curToken, node_t **node)
 {
     assert (program);
     assert (tokens);
     assert (curToken);
     assert (node);
     
-    // if (strncmp ("MC ", *curPos, 3) != )
-
     node_t *nodeL = NULL;
-    int status = GetVariable (program, tokens, curToken, &nodeL);
+    int status = GetVariable (program, tokens, curToken, &nodeL, true);
     if (status != TREE_OK)
-        SYNTAX_ERROR;
+        return status;
 
-    if (!IS_TOKEN_KEYWORD (KEY_ASSIGN))
-        SYNTAX_ERROR;
+    if (!(IS_TOKEN_KEYWORD (KEY_DECLARATE) || 
+          IS_TOKEN_KEYWORD (KEY_ASSIGN)))
+        return TREE_ERROR_INVALID_TOKEN;
+
+    size_t idx = tokens->data[*curToken].value.idx;
 
     (*curToken)++;
 
@@ -264,14 +349,56 @@ int GetAssign (program_t *program, tokensArray_t *tokens, size_t *curToken, node
     if (status != TREE_OK)
         SYNTAX_ERROR;
 
+    DEBUG_VAR ("%lu", *curToken);
+
     if (!IS_TOKEN_KEYWORD (KEY_CONNECT))
         SYNTAX_ERROR;
     
     (*curToken)++;
     
-    *node = ASSIGN_ (nodeL, nodeR);
+    *node = NodeCtorAndFill (&program->ast, 
+                             TYPE_KEYWORD, {.idx = idx},
+                             nodeL, nodeR);
 
-    NODE_DUMP (program, *node, "Created new node (assign). curToken = %lu", *curToken);
+    NODE_DUMP (program, *node, "Created new node (declaration). curToken = %lu", *curToken);
+
+    return TREE_OK;
+}
+
+int GetPrint (program_t *program, tokensArray_t *tokens, size_t *curToken, node_t **node)
+{
+    assert (program);
+    assert (tokens);
+    assert (curToken);
+    assert (node);
+
+    if (!IS_TOKEN_KEYWORD (KEY_PRINT))
+        return TREE_ERROR_INVALID_TOKEN;
+
+    (*curToken)++;
+
+    if (!IS_TOKEN_KEYWORD (KEY_OPEN_PARENS))
+        SYNTAX_ERROR;
+
+    (*curToken)++;
+
+    *node = PRINT_ (NULL, NULL);
+
+    int status = GetExpression (program, tokens, curToken, &(*node)->left);
+    if (status != TREE_OK)
+        SYNTAX_ERROR;
+
+    if (!IS_TOKEN_KEYWORD (KEY_CLOSE_PARENS))
+        SYNTAX_ERROR;
+
+    (*curToken)++;
+
+    if (!IS_TOKEN_KEYWORD (KEY_CONNECT))
+        SYNTAX_ERROR;
+
+    (*curToken)++;
+
+    *node = CONNECT_ (*node, NULL);
 
     return TREE_OK;
 }
@@ -309,6 +436,8 @@ int GetExpression (program_t *program, tokensArray_t *tokens, size_t *curToken, 
     }
 
     NODE_DUMP (program, *node, "Created new node (ast). curToken = %lu", *curToken);
+
+    // (*curToken)++; // FIXME: I just removed this at 23:15 15 dec
 
     return TREE_OK;
 }
@@ -411,9 +540,7 @@ int GetPrimaryExpression (program_t *program, tokensArray_t *tokens, size_t *cur
     if (status == TREE_OK)
         return status;
     
-    status = GetVariable (program, tokens, curToken, node);
-    DEBUG_LOG ("GetVariable() status = %d", status);
-
+    status = GetVariable (program, tokens, curToken, node, true);
     if (status == TREE_OK)
         return status;
     
@@ -435,9 +562,9 @@ int GetNumber (program_t *program, tokensArray_t *tokens, size_t *curToken, node
 
     *node = NUM_ (val);
 
-    (*curToken)++;
-
     NODE_DUMP (program, *node, "Created new node (number). curToken = %lu", *curToken);
+    
+    (*curToken)++;
 
     return TREE_OK;
 }
@@ -457,24 +584,37 @@ int GetFunction (program_t *program, tokensArray_t *tokens, size_t *curToken, no
 
     if (func == NULL)
     {
-        DEBUG_LOG ("%s", "No builtin function found. Return");
+        DEBUG_LOG ("No builtin function found by idx %lu. Return", tokens->data[*curToken].value.idx);
 
         return TREE_ERROR_INVALID_TOKEN;
     }
     
-    if (func->numberOfArgs < 1 ||
-        func->numberOfArgs > 2)
+    if (func->numberOfArgs > 2)
     {
-        ERROR_LOG ("%s", "Where are builitn functions with only 1 or 2 args now...\n"
+        ERROR_LOG ("%s", "Where are builitn functions with only 0, 1 or 2 args now...\n"
                          "Maybe you forgot to rewrite this part of code?");
 
         return TREE_ERROR_INVALID_TOKEN;
     }
 
+    *node = NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = (size_t) func->idx}, NULL, NULL);
+
+    (*curToken)++;
+
     if (!IS_TOKEN_KEYWORD (KEY_OPEN_PARENS))
         SYNTAX_ERROR;
     
     (*curToken)++;
+
+    if (func->numberOfArgs == 0)
+    {
+        if (!IS_TOKEN_KEYWORD (KEY_CLOSE_PARENS))
+            SYNTAX_ERROR;
+
+        (*curToken)++;
+
+        return TREE_OK;
+    }
 
     node_t *firstArg = {};
     int status = GetExpression (program, tokens, curToken, &firstArg);
@@ -483,7 +623,7 @@ int GetFunction (program_t *program, tokensArray_t *tokens, size_t *curToken, no
 
     if (func->numberOfArgs == 1)
     {
-        if (IS_TOKEN_KEYWORD (KEY_CLOSE_PARENS))
+        if (!IS_TOKEN_KEYWORD (KEY_CLOSE_PARENS))
             SYNTAX_ERROR;
         
         (*curToken)++;
@@ -515,7 +655,7 @@ int GetFunction (program_t *program, tokensArray_t *tokens, size_t *curToken, no
 
 #undef IS_TOKEN_KEYWORD
 
-int GetVariable (program_t *program, tokensArray_t *tokens, size_t *curToken, node_t **node)
+int GetVariable (program_t *program, tokensArray_t *tokens, size_t *curToken, node_t **node, bool reportErrors)
 {
     assert (program);
     assert (tokens);
@@ -523,30 +663,14 @@ int GetVariable (program_t *program, tokensArray_t *tokens, size_t *curToken, no
     assert (node);
 
     if (tokens->data[*curToken].type != TYPE_VARIABLE)
+    {
+        if (reportErrors)
+            ERROR_LOG ("Token number [%lu] doesn't have variable type", *curToken);
+
+        DumpTokens (program);
+
         return TREE_ERROR_INVALID_TOKEN;
-    
-    // char *varName = *curPos;
-    // DEBUG_VAR ("%p", varName);
-
-    // int res = GetVariableName (curPos);
-    // DEBUG_VAR ("%p", *curPos);
-
-    // if (res != TREE_OK)
-    // {
-    //     DEBUG_LOG ("'%s' not a variable", *curPos);
-
-    //     return TREE_ERROR_SYNTAX_IN_SAVE_FILE;
-    // }
-
-    // type_t type   = {};
-    // value_t value = {};
-    
-    // size_t varNameLen = size_t (*curPos - varName);
-    // DEBUG_VAR ("%lu", varNameLen);
-
-    // int status = FindOrAddVariable (program, &varName, varNameLen, &type, &value);
-    // if (status != TREE_OK)
-    //     return status;
+    }
 
     *node = NodeCtorAndFill (&program->ast, tokens->data[*curToken].type, tokens->data[*curToken].value, NULL, NULL);
 
@@ -556,29 +680,6 @@ int GetVariable (program_t *program, tokensArray_t *tokens, size_t *curToken, no
 
     return TREE_OK;
 }
-
-// TODO: delete
-// int GetVariableName (char **curPos)
-// {
-//     assert (curPos);
-
-//     if (!isalpha (**curPos) && **curPos != '_')
-//         return TREE_ERROR_SYNTAX_IN_SAVE_FILE;
-    
-//     (*curToken)++;
-
-//     DEBUG_VAR ("%p", *curPos);
-
-//     while (isalpha (**curPos) || isdigit (**curPos) || **curPos == '_')
-//     {
-//         DEBUG_LOG ("**curPos(variable name) = \"%c\"", **curPos);
-//         DEBUG_VAR ("%p", *curPos);
-        
-//         (*curPos)++;    
-//     }
-    
-//     return TREE_OK;
-// }
 
 #include "dsl_undef.h"
 

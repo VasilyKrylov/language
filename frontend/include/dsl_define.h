@@ -13,8 +13,14 @@
 #define ADD_(left, right)                                                               \
         NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_ADD},                 \
                          left, right)
+#define DECLARATE_(left, right)                                                         \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_DECLARATE},           \
+                         left, right)
 #define ASSIGN_(left, right)                                                            \
         NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_ASSIGN},              \
+                         left, right)
+#define PRINT_(left, right)                                                             \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_PRINT},               \
                          left, right)
 #define IF_(left, right)                                                                \
         NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_IF},                  \

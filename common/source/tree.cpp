@@ -15,7 +15,6 @@
 
 static int TreeCountNodes       (node_t *node, size_t size, size_t *nodesCount);
 
-
 // maybe: pass varInfo here for ERROR_LOG
 node_t *NodeCtor (tree_t *tree)
 {
@@ -117,11 +116,6 @@ int TreeCtor (tree_t *tree, treeLog_t *log
     ON_DEBUG (
         tree->varInfo = varInfo;
     );
-
-    // int status = LogCtor (&tree->log);
-    // DEBUG_VAR ("%d", status);
-    // if (status != TREE_OK)
-    //     return status;
 
     tree->log = log;
 

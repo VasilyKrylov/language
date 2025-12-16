@@ -265,7 +265,7 @@ void TreePrefixPass (program_t *program, node_t *node, FILE *graphFile)
 
     fprintf (graphFile, " label = \" {");
 
-    PrintNode (graphFile, program, node);
+    PrintNode (graphFile, program, node, true);
 
 #ifdef GRAPH_DETAILED
 
@@ -309,7 +309,7 @@ int DumpMakeConfig (program_t *program, node_t *node)
     char graphFilePath[kFileNameLen + 22] = {};
     snprintf (graphFilePath, kFileNameLen + 22, "%s%lu.dot", program->log.dotFolderPath, imageCounter);
 
-    DEBUG_VAR ("%s", graphFilePath);
+    DEBUG_STR (graphFilePath);
 
     FILE *graphFile  = fopen (graphFilePath, "w");
     if (graphFile == NULL)
@@ -361,7 +361,7 @@ int DumpMakeImg (node_t *node, treeLog_t *log)
              "<img src=\"img/%s\" hieght=\"500px\">\n",
              imgFileName);
 
-    DEBUG_VAR ("%s", command);
+    DEBUG_STR (command);
 
     return TREE_OK;
 }

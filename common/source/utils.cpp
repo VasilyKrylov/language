@@ -75,9 +75,8 @@ char *ReadFile (const char *inputFileName, size_t *bufferLen)
 
     ssize_t fileSize = GetFileSize (inputFileName);
     if (fileSize == -1)
-    {
         return NULL;
-    }
+        
     *bufferLen = (size_t) fileSize + 1;
 
     char *content = (char *) calloc (*bufferLen, sizeof(char));

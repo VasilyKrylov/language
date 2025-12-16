@@ -6,3 +6,5 @@ dump/*
 .vscode/*
 tree.txt
 frontend/frontend
+log.txt
+ast_forest/*

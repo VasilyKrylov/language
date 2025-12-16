@@ -8,7 +8,7 @@
 
 typedef union value_t treeDataType;
 
-const char ktreeSaveFileName[]       = "tree.txt";
+const char ktreeSaveFileName[]       = "ast_forest/tree.ast";
 
 #define TREE_DO_AND_RETURN(action)          \
         do                                  \
@@ -23,14 +23,15 @@ const char ktreeSaveFileName[]       = "tree.txt";
 #define TREE_DO_AND_CLEAR(action, clearAction)      \
         do                                          \
         {                                           \
-            int status = action;                    \
-            DEBUG_VAR("%d", status);                \
+            int statusMacro = action;               \
+            DEBUG_VAR("%d", statusMacro);           \
                                                     \
-            if (status != TREE_OK)                  \
+            if (statusMacro != TREE_OK)             \
             {                                       \
                 clearAction;                        \
                                                     \
-                return status;                      \
+            DEBUG_VAR("%d", statusMacro);           \
+                return statusMacro;                 \
             }                                       \
         } while (0)
 
@@ -127,7 +128,7 @@ enum treeError_t
     TREE_ERROR_LOAD_INTO_NOT_EMPTY      = 1 << 5,
     TREE_ERROR_INVALID_NODE             = 1 << 6,
     TREE_ERROR_CREATING_NODE            = 1 << 7,
-    TREE_ERROR_SYNTAX_IN_SAVE_FILE      = 1 << 8,
+    TREE_ERROR_SYNTAX_IN_SAVE_FILE      = 1 << 8, // FIXME: TREE_ERROR_IN_SOURCE_FILE
     TREE_ERROR_NODE_NOT_FOUND           = 1 << 9,
     TREE_ERROR_INVALID_TOKEN            = 1 << 10,
 

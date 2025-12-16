@@ -9,12 +9,12 @@
 
 #include "utils.h"
 
-int FillTokensArray (char *buffer, tokensArray_t *tokens, variablesTable_t *namesTable);
+int FillTokensArray (char *buffer, tokensArray_t *tokens, variablesTable_t *variables);
 
 int TokenAddNumber (char **curPos, tokensArray_t *tokens, size_t line, size_t position);
 
 
-int TokenAddVariable (char **curPos, tokensArray_t *tokens, variablesTable_t *namesTable, 
+int TokenAddVariable (char **curPos, tokensArray_t *tokens, variablesTable_t *variables, 
                     size_t line, size_t position);
 
 int TokenAdd (tokensArray_t *tokens, type_t type, value_t value, 
@@ -22,12 +22,6 @@ int TokenAdd (tokensArray_t *tokens, type_t type, value_t value,
 
 
 int CheckForReallocTokens (tokensArray_t *tokens);
-
-int CheckForReallocVariables (variablesTable_t *namesTable);
-
-
-int FindOrAddVariable (variablesTable_t *variables, char *varName, size_t len, 
-                       size_t *idx);
 
 
 int TokensArrayCtor (tokensArray_t *tokens)
@@ -64,20 +58,20 @@ void TokensArrayDtor (tokensArray_t *tokens)
     tokens->capacity = 0;
 }
 
-int VariablesTableCtor (variablesTable_t *variablesTable)
+int VariablesTableCtor (variablesTable_t *variables)
 {
-    assert (variablesTable);
+    assert (variables);
 
     const size_t kNamesTableInitCapacity = 16;
 
-    variablesTable->size     = 0;
-    variablesTable->capacity = kNamesTableInitCapacity;
+    variables->size     = 0;
+    variables->capacity = kNamesTableInitCapacity;
 
-    variablesTable->data = (variable_t *) calloc (variablesTable->capacity, sizeof (variable_t));
+    variables->data = (variable_t *) calloc (variables->capacity, sizeof (variable_t));
 
-    if (variablesTable->data == NULL)
+    if (variables->data == NULL)
     {
-        ERROR_LOG ("Error allocating memory for namesTable-data - %s",
+        ERROR_LOG ("Error allocating memory for variables->data - %s",
                     strerror (errno));
 
         return TREE_ERROR_COMMON |
@@ -87,15 +81,15 @@ int VariablesTableCtor (variablesTable_t *variablesTable)
     return TREE_OK;
 }
 
-void VariablesTableDtor (variablesTable_t *varaiblesTable)
+void VariablesTableDtor (variablesTable_t *variables)
 {
-    assert (varaiblesTable);
+    assert (variables);
 
-    free (varaiblesTable->data);
-    varaiblesTable->data = NULL;
+    free (variables->data);
+    variables->data = NULL;
 
-    varaiblesTable->size     = 0;
-    varaiblesTable->capacity = 0;
+    variables->size     = 0;
+    variables->capacity = 0;
 }
 
 int GetTokens (const char *fileName, program_t *program)
@@ -116,13 +110,13 @@ int GetTokens (const char *fileName, program_t *program)
     return TREE_OK;
 }
 
-int FillTokensArray (char *buffer, tokensArray_t *tokens, variablesTable_t *variablesTable)
+int FillTokensArray (char *buffer, tokensArray_t *tokens, variablesTable_t *variables)
 {
     assert (buffer);
     assert (tokens);
 
-    size_t line     = 0;
-    size_t position = 0;
+    size_t line     = 1;
+    size_t position = 1;
 
     for (char *curPos = buffer; *curPos != '\0';)
     {
@@ -143,6 +137,7 @@ int FillTokensArray (char *buffer, tokensArray_t *tokens, variablesTable_t *vari
 
         bool found = false;
 
+        // FIXME: TryToFindOperator()
         for (size_t i = 0; i < kNumberOfKeywords; i++)
         {
             if (strncmp (curPos, kKeywords[i].name, kKeywords[i].nameLen) == 0)
@@ -154,15 +149,16 @@ int FillTokensArray (char *buffer, tokensArray_t *tokens, variablesTable_t *vari
                 curPos += kKeywords[i].nameLen;
 
                 DEBUG_STR (kKeywords[i].name);
+                DEBUG_VAR ("%d", kKeywords[i].idx);
                 DEBUG_VAR ("%lu", line);
                 
                 break;
             }
         }
-        if (found) 
-            continue;
 
-        TREE_DO_AND_RETURN (TokenAddVariable (&curPos, tokens, variablesTable, line, position));
+        if (found) continue;
+
+        TREE_DO_AND_RETURN (TokenAddVariable (&curPos, tokens, variables, line, position));
     }
 
     return TREE_OK;
@@ -191,33 +187,6 @@ int CheckForReallocTokens (tokensArray_t *tokens)
     }
     
     tokens->data = newData;
-
-    return TREE_OK;
-}
-
-// FIXME: copy paste
-int CheckForReallocVariables (variablesTable_t *namesTable)
-{
-    assert (namesTable);
-
-    if (namesTable->size < namesTable->capacity)
-        return TREE_OK;
-
-    if (namesTable->capacity == 0)
-        namesTable->capacity = 1;
-
-    variable_t *newData = (variable_t *) realloc (namesTable->data, 
-                                                      namesTable->capacity * sizeof (variable_t));
-    
-    if (newData == NULL)
-    {
-        ERROR_LOG ("Error reallocating memory - %s", strerror (errno));
-
-        return TREE_ERROR_COMMON |
-               COMMON_ERROR_ALLOCATING_MEMORY;
-    }
-
-    namesTable->data = newData;
 
     return TREE_OK;
 }
@@ -291,42 +260,96 @@ int TokenAddVariable (char **curPos, tokensArray_t *tokens, variablesTable_t *va
     TREE_DO_AND_RETURN (FindOrAddVariable (variables, varName, size_t(*curPos - varName), &idx));
 
     TREE_DO_AND_RETURN (TokenAdd (tokens, TYPE_VARIABLE, {.idx = idx}, line, position));
-    
+
+    DumpVariables (variables);
+
     return TREE_OK;
 }
 
-int FindOrAddVariable (variablesTable_t *variables, char *varName, size_t len, 
-                       size_t *idx)
+void DumpTokens (program_t *program)
+{
+    assert (program);
+
+    DEBUG_PRINT ("%s", "\n========== TOKENS ==========\n");
+
+    for (size_t i = 0; i < program->tokens.size; i++)
+    {
+        token_t *token = &program->tokens.data[i];
+
+        DEBUG_PRINT ("token[%lu]: \n", i);
+
+        DEBUG_PRINT ("%s", "\t ");
+        PrintToken (stderr, program, token);
+        DEBUG_PRINT ("%s", "\n");
+
+        DEBUG_PRINT ("\t type = %s\n", GetTypeName (token->type));
+
+        if (token->type == TYPE_CONST_NUM)
+            DEBUG_PRINT ("\t value.number = " VALUE_NUMBER_FSTRING, token->value.number);
+        else
+            DEBUG_PRINT ("\t value.idx = %lu", token->value.idx);
+
+        DEBUG_PRINT ("%s", "\n");
+
+        DEBUG_PRINT ("\t line = %lu\n", token->line);
+        DEBUG_PRINT ("\t position = %lu\n", token->line);
+    }
+}
+
+void DumpVariables (variablesTable_t *variables)
 {
     assert (variables);
-    assert (varName);
-    assert (idx);
 
-    const variable_t *variable = FindVariableByName (variables, varName, len);
+    DEBUG_PRINT ("%s", "\n========== Variables ==========\n");
 
-    if (variable != NULL)
+    for (size_t i = 0; i < variables->size; i++)
     {
-        *idx = variable->idx;
+        variable_t *var = &variables->data[i];
 
-        return TREE_OK;
+        DEBUG_LOG ("variables[%lu]:", i);
+        DEBUG_LOG ("\t idx = %lu", var->idx);
+        DEBUG_LOG ("\t name = \"%s\"", var->name);
+        DEBUG_LOG ("\t len = %lu", var->len);
     }
-    
-    TREE_DO_AND_RETURN (CheckForReallocVariables (variables));
+}
 
-    *idx = size_t(variables->size);
 
-    variables->data[*idx].name = varName;
-    variables->data[*idx].len = len;
-    variables->data[*idx].idx = *idx;
+int PrintToken (FILE *file, program_t *program, token_t *token)
+{
+    assert (file);
+    assert (token);
 
-    DEBUG_LOG ("%.*s", (int)variables->data[*idx].len, variables->data[*idx].name);
+    switch (token->type)
+    {
+        case TYPE_UKNOWN:           fprintf (file, "UKNOWN");                                   break;
+        case TYPE_CONST_NUM:        fprintf (file, VALUE_NUMBER_FSTRING, token->value.number);  break;
 
-    variables->size++;
-    
+        case TYPE_KEYWORD:          
+        {
+            const keyword_t *keyword = FindKeywordByIdx ((keywordIdxes_t) token->value.idx);
+            
+            if (keyword == NULL)
+                fprintf (file, "NULL keyword");
+            else
+                fprintf (file, "%s", keyword->standardName);                  
+            break;
+        }
+        case TYPE_VARIABLE:         
+        {
+            const variable_t *var = FindVariableByIdx (&program->variables, (size_t) token->value.idx);
 
-    DEBUG_VAR ("%lu", variables->size);
-    DEBUG_LOG ("variable name is '%.*s'", 
-               (int)variables->data[variables->size].len, varName); 
+            if (var == NULL)
+                fprintf (file, "NULL variable");
+            else
+                fprintf (file, "%.*s", (int)var->len, var->name);
+            break;
+        }
+
+        default:
+            fprintf (file, "error");
+
+            return TREE_ERROR_INVALID_NODE;
+    }
 
     return TREE_OK;
 }

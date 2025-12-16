@@ -7,7 +7,6 @@
 #include "tree_ast.h"
 
 #include "tree.h"
-#include "tree_load_infix.h"
 #include "tokenizator.h"
 #include "utils.h"
 #include "float_math.h"
@@ -18,6 +17,8 @@ static node_t *NodeSimplifyCalc         (tree_t *tree, node_t *node, bool *modif
 static node_t *NodeSimplifyTrivial      (tree_t *tree, node_t *node, bool *modified);
 
 int NodeSaveToFile (FILE *file, program_t *program, node_t *node);
+
+void PrintTabsToFile (FILE *file, size_t n);
 
 int ProgramCtor (program_t *program)
 {
@@ -30,9 +31,6 @@ int ProgramCtor (program_t *program)
     program->buffer = NULL;
 
     TREE_DO_AND_RETURN (TREE_CTOR (&program->ast, &program->log));
-
-    // TREE_DO_AND_RETURN (TreeLoadInfixFromFile (program, &program->ast, 
-    //                                            ktreeSaveFileName, &program->buffer));
 
     return TREE_OK;
 }
@@ -77,32 +75,55 @@ int TreeAstSaveToFile (program_t *program, const char *fileName)
     return status;
 }
 
+void PrintTabsToFile (FILE *file, size_t n)
+{
+    assert (file);
+
+    while (n--)
+        fprintf (file, "\t");
+}
+
 int NodeSaveToFile (FILE *file, program_t *program, node_t *node)
 {
     assert (file);
     assert (program);
     assert (node);
 
-    fprintf (file, "%s", "(");
+    static size_t tabsCounter = 0;
+    
+    tabsCounter++;
 
-    TREE_DO_AND_RETURN (PrintNode (file, program, node));
+    fprintf (file, "%s", "( ");
+
+    TREE_DO_AND_RETURN (PrintNode (file, program, node, false));
+
+    fprintf (file, "%s", "\n");
+    PrintTabsToFile (file, tabsCounter);
 
     if (node->left != NULL)
         NodeSaveToFile (file, program, node->left);
     else
-        fprintf (file, "%s", " nil");
+        fprintf (file, "%s", "nil");
+
+    fprintf (file, "%s", "\n");
+    PrintTabsToFile (file, tabsCounter);
 
     if (node->right != NULL)
         NodeSaveToFile (file, program, node->right);
     else
-        fprintf (file, "%s", " nil");
+        fprintf (file, "%s", "nil");
 
-    fprintf (file, "%s", ")\n");
+    fprintf (file, "%s", "\n");
+
+    tabsCounter--;
+    PrintTabsToFile (file, tabsCounter);
+
+    fprintf (file, "%s", ")");
 
     return TREE_OK;
 }
 
-int PrintNode (FILE *file, program_t *program, node_t *node)
+int PrintNode (FILE *file, program_t *program, node_t *node, bool exitQuotes)
 {
     assert (file);
     assert (program);
@@ -120,7 +141,7 @@ int PrintNode (FILE *file, program_t *program, node_t *node)
             if (keyword == NULL)
                 fprintf (file, "NULL keyword");
             else
-                fprintf (file, "%s", keyword->name);                  
+                fprintf (file, "%s", keyword->standardName);                  
             break;
         }
         case TYPE_VARIABLE:         
@@ -130,7 +151,12 @@ int PrintNode (FILE *file, program_t *program, node_t *node)
             if (var == NULL)
                 fprintf (file, "NULL variable");
             else
-                fprintf (file, "%.*s", (int)var->len, var->name);
+            {
+                if (exitQuotes)
+                    fprintf (file, "\\\"%.*s\\\"", (int)var->len, var->name);
+                else
+                    fprintf (file, "\"%.*s\"", (int)var->len, var->name);
+            }
             break;
         }
 
@@ -163,6 +189,22 @@ void TryToFindOperator (char *str, int len, type_t *type, treeDataType *value)
     for (size_t i = 0; i < kNumberOfKeywords; i++)
     {
         if (strncmp (str, kKeywords[i].name, (size_t) len) == 0)
+        {
+            *type = TYPE_KEYWORD;
+            value->idx = kKeywords[i].idx;
+
+            DEBUG_LOG ("FOUND \"%s\"", kKeywords[i].name);
+        }
+    }
+}
+
+void TryToFindNode (char *str, int len, type_t *type, treeDataType *value)
+{
+    assert (str);
+
+    for (size_t i = 0; i < kNumberOfKeywords; i++)
+    {
+        if (strncmp (str, kKeywords[i].standardName, (size_t) len) == 0)
         {
             *type = TYPE_KEYWORD;
             value->idx = kKeywords[i].idx;
@@ -229,6 +271,73 @@ const keyword_t *FindBuiltinFunctionByIdx (keywordIdxes_t idx)
 
     return NULL;
 }
+
+// FIXME: copy paste
+int CheckForReallocVariables (variablesTable_t *namesTable)
+{
+    assert (namesTable);
+
+    if (namesTable->size < namesTable->capacity)
+        return TREE_OK;
+
+    if (namesTable->capacity == 0)
+        namesTable->capacity = 1;
+
+    variable_t *newData = (variable_t *) realloc (namesTable->data, 
+                                                      namesTable->capacity * sizeof (variable_t));
+    
+    if (newData == NULL)
+    {
+        ERROR_LOG ("Error reallocating memory - %s", strerror (errno));
+
+        return TREE_ERROR_COMMON |
+               COMMON_ERROR_ALLOCATING_MEMORY;
+    }
+
+    namesTable->data = newData;
+
+    return TREE_OK;
+}
+
+int FindOrAddVariable (variablesTable_t *variables, char *varName, size_t len, 
+                       size_t *idx)
+{
+    assert (variables);
+    assert (varName);
+    assert (idx);
+
+    DEBUG_VAR ("%lu", len);
+
+    const variable_t *variable = FindVariableByName (variables, varName, len);
+
+    if (variable != NULL)
+    {
+        *idx = variable->idx;
+
+        return TREE_OK;
+    }
+    
+    TREE_DO_AND_RETURN (CheckForReallocVariables (variables));
+
+    *idx = size_t(variables->size);
+
+    variables->data[*idx].name = varName;
+    variables->data[*idx].len = len;
+    variables->data[*idx].idx = *idx;
+
+    DEBUG_LOG ("%.*s", (int)variables->data[*idx].len, variables->data[*idx].name);
+
+    variables->size++;
+    
+    DEBUG_VAR ("%lu", variables->size);
+    DEBUG_LOG ("variable name is '%.*s'", 
+               (int)variables->data[variables->size].len, varName);
+
+    DumpVariables (variables);
+
+    return TREE_OK;
+}
+
 
 // // =============  CALCULATION   =============
 

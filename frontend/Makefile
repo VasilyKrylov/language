@@ -1,12 +1,12 @@
-CPP_FILES = source/main.cpp					\
-			source/tree.cpp					\
-			source/tree_ast.cpp				\
-			source/tree_load_infix.cpp		\
-			source/tree_log.cpp				\
-			source/tokenizator.cpp			\
-			../common/source/debug.cpp		\
-			../common/source/utils.cpp		\
-			../common/source/float_math.cpp	\
+CPP_FILES = source/main.cpp						\
+			source/tree_load_infix.cpp			\
+			../common/source/tokenizator.cpp	\
+			../common/source/tree.cpp			\
+			../common/source/tree_ast.cpp		\
+			../common/source/tree_log.cpp		\
+			../common/source/debug.cpp			\
+			../common/source/utils.cpp			\
+			../common/source/float_math.cpp		\
 
 
 .PHONY: all
