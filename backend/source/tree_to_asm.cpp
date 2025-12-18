@@ -11,6 +11,8 @@
 static int AssembleNode (program_t *program, node_t *node, FILE *file);
 static int AssembleKeyword (program_t *program, node_t *node, FILE *file);
 
+static int AssembleIf (program_t *program, node_t *node, FILE *file);
+
 int AssembleTreeToFile (program_t *program, const char *fileName)
 {
     assert (program);
@@ -84,8 +86,6 @@ int AssembleKeyword (program_t *program, node_t *node, FILE *file)
     assert (file);
     assert (node->type == TYPE_KEYWORD);
 
-    static size_t ifCounter = 0;
-
     const keyword_t *keyword = FindKeywordByIdx ((keywordIdxes_t) node->value.idx);
 
     if (keyword->numberOfArgs >= 1)
@@ -120,20 +120,7 @@ int AssembleKeyword (program_t *program, node_t *node, FILE *file)
             fprintf (file, "OUT\n");
             break;
 
-        case KEY_IF:
-            fprintf (file, "; if\n");
-
-            TREE_DO_AND_RETURN (AssembleNode (program, node->left, file));
-
-            fprintf (file, "PUSH 0\n"
-                           "JE :endif_%lu\n", ifCounter);
-            
-            TREE_DO_AND_RETURN (AssembleNode (program, node->right, file));
-
-            fprintf (file, ":endif_%lu\n\n", ifCounter);
-
-            ifCounter++;
-
+        case KEY_IF: TREE_DO_AND_RETURN (AssembleIf (program, node, file) );
             break;
 
         case KEY_DECLARATE:
@@ -204,20 +191,58 @@ int AssembleKeyword (program_t *program, node_t *node, FILE *file)
 
             fprintf (file, "\n; Calctulating return value\n");
 
-            TREE_DO_AND_RETURN (AssembleNode (program, node->left, file));
+            // TREE_DO_AND_RETURN (AssembleNode (program, node->left, file)); // FIXME: check what this works
 
             fprintf (file, "POPR RAX\n"
                            "RET\n\n");
             break;
 
-        case KEY_COMMA:
-            assert (0 && "TODO:");
+        case KEY_CALL:
+        {
+            node_t *functionName = node->left;
 
-    
+            const name_t *functionNameStr = NamesTableFindByIdx (&program->namesTable, functionName->value.idx);
+            assert (functionNameStr);
+
+            fprintf (file, "\nCALL :%.*s\n", (int) functionNameStr->len, functionNameStr->name );
+            fprintf (file, "PUSHR RAX\n\n");
+        }
+
+            break;
+
+        case KEY_COMMA:
+        {
+            assert (0 && "TODO:");
+        }
+
+
         default:
             assert (0 && "Add new keyword to AssembleKeyword()");
-            break;
     }
+
+    return TREE_OK;
+}
+
+int AssembleIf (program_t *program, node_t *node, FILE *file)
+{
+    assert (program);
+    assert (node);
+    assert (file);
+
+    static size_t ifCounter = 0;
+
+    fprintf (file, "; if\n");
+
+    TREE_DO_AND_RETURN (AssembleNode (program, node->left, file));
+
+    fprintf (file, "PUSH 0\n"
+                   "JE :endif_%lu\n", ifCounter);
+    
+    TREE_DO_AND_RETURN (AssembleNode (program, node->right, file));
+
+    fprintf (file, ":endif_%lu\n\n", ifCounter);
+
+    ifCounter++;
 
     return TREE_OK;
 }

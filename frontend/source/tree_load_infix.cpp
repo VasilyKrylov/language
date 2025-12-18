@@ -366,7 +366,24 @@ int GetFunctionCall (program_t *program, tokensArray_t *tokens, size_t *curToken
     // Ошибка в том, что можно вызвать перменную
     // А ещё можно вызвать функцию ниже, в отличии от решения с поиском по стеку
     // короче думайте
-    
+
+    *node = CALL_ (NAME_ (funcName->idx), NULL);
+
+    NODE_DUMP (program, (*node), "Created new node(call). curToken = %lu", *curToken);
+
+    (*curToken)++;
+
+    if (!IS_TOKEN_KEYWORD (KEY_OPEN_PARENS))
+        SYNTAX_ERROR_MESSAGE ("%s", "А скобки за тебя Пушкин* ставить будет?\n"
+                                    "* - старейший баттл рэпер России");
+
+    (*curToken)++;
+
+    if (!IS_TOKEN_KEYWORD (KEY_CLOSE_PARENS))
+        SYNTAX_ERROR_MESSAGE ("%s", "А скобки за тебя Пушкин* закрывть будет?\n"
+                                    "* - старейший баттл рэпер России");
+
+    (*curToken)++;
 
     return TREE_OK;
 }
@@ -419,6 +436,12 @@ int GetOperation (program_t *program, tokensArray_t *tokens, size_t *curToken, n
     DEBUG_LOG ("%s", "Token isn't Declarartion or assignment");
 
     status = GetReturn (program, tokens, curToken, node);
+    if (status == TREE_OK)
+        return TREE_OK;
+
+    DEBUG_LOG ("%s", "Token isn't Return");
+
+    status = GetFunctionCall (program, tokens, curToken, node);
     if (status == TREE_OK)
         return TREE_OK;
 
@@ -760,6 +783,10 @@ int GetPrimaryExpression (program_t *program, tokensArray_t *tokens, size_t *cur
         return status;
 
     status = GetBuiltinFunction (program, tokens, curToken, node);
+    if (status == TREE_OK)
+        return status;
+
+    status = GetFunctionCall (program, tokens, curToken, node);
     if (status == TREE_OK)
         return status;
     

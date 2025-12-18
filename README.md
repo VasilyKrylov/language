@@ -2,6 +2,8 @@
 
 Ключевые слова на русском, все переменные на английском
 
+Middle end используется из этого пректа - [text](https://github.com/Irishk07/Language)
+
 
 ## TODO:
 * ~~done~~

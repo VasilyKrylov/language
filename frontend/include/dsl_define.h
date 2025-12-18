@@ -10,11 +10,13 @@
 #define NAME_(idxInNamesTable)                                                          \
         NodeCtorAndFill (&program->ast, TYPE_NAME, {.idx = idxInNamesTable}, NULL, NULL)
 #define FUNC_(left, right)                                                              \
-        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_FUNC}, NULL, NULL)
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_FUNC}, left, right)
 #define MAIN_(left, right)                                                              \
-        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_MAIN}, NULL, NULL)
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_MAIN}, left, right)
+#define CALL_(left, right)                                                              \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_CALL}, left, right)
 #define RETURN_(left, right)                                                            \
-        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_RETURN}, NULL, NULL)
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_RETURN}, left, right)
 #define CONNECT_(left, right)                                                           \
         NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_CONNECT},             \
                          left, right)
