@@ -112,7 +112,7 @@ char *SkipSpaces (char *buffer)
 
     while (isspace (*buffer))
     {
-        DEBUG_LOG ("%d - '%c'", *buffer, *buffer);
+        // DEBUG_LOG ("%d - '%c'", *buffer, *buffer);
         buffer++;
     }
 

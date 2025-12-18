@@ -28,10 +28,10 @@ int AssembleTreeToFile (program_t *program, const char *fileName)
 
     fprintf (file, "; This asm file was compiled from rap language - best language in the world!\n\n");
 
-    TREE_DO_AND_RETURN (AssembleNode (program, program->ast.root, file));
-
-    fprintf (file, "\n"
+    fprintf (file, "CALL :main\n"
                    "HLT\n");
+
+    TREE_DO_AND_RETURN (AssembleNode (program, program->ast.root, file));
 
     return TREE_OK;
 }
@@ -41,6 +41,8 @@ int AssembleNode (program_t *program, node_t *node, FILE *file)
     assert (program);
     assert (node);
     assert (file);
+
+    DEBUG_PTR (node);
 
     switch (node->type)
     {
@@ -64,6 +66,9 @@ int AssembleNode (program_t *program, node_t *node, FILE *file)
             
             break;
         
+        case TYPE_NAME:
+            assert (0 && "Чувак, ты не должен это ассемблировать");
+
         default:
             assert (0 && "Add new type to AssembleNode");
             break;
@@ -149,11 +154,65 @@ int AssembleKeyword (program_t *program, node_t *node, FILE *file)
             break;
         
         case KEY_CONNECT:
-            TREE_DO_AND_RETURN (AssembleNode (program, node->left, file));
+            if (node->left != NULL)
+                TREE_DO_AND_RETURN (AssembleNode (program, node->left, file));
             
             if (node->right != NULL)
                 TREE_DO_AND_RETURN (AssembleNode (program, node->right, file));
             break;
+
+        case KEY_FUNC:
+        {
+            node_t *arguments = node->left;
+            assert (arguments);
+
+            node_t *functionName = arguments->left;
+            assert (functionName);
+
+            const name_t *functionNameStr = NamesTableFindByIdx (&program->namesTable, functionName->value.idx);
+
+            fprintf (file, "\n:%.*s\n", (int) functionNameStr->len, functionNameStr->name);
+
+            if (arguments->right != NULL)
+                TREE_DO_AND_RETURN (AssembleNode (program, arguments->right, file));
+
+            node_t *body = node->right;
+            assert (body);
+
+            TREE_DO_AND_RETURN (AssembleNode (program, body, file));
+
+            break;
+        }
+
+        case KEY_MAIN:
+        {
+            node_t *functionName = node->left;
+            assert (functionName);
+
+            fprintf (file, "\n:main\n");
+
+            node_t *body = node->right;
+            assert (body);
+
+            TREE_DO_AND_RETURN (AssembleNode (program, body, file));
+
+            break;
+        }
+
+        case KEY_RETURN:
+            assert (node->left);
+
+            fprintf (file, "\n; Calctulating return value\n");
+
+            TREE_DO_AND_RETURN (AssembleNode (program, node->left, file));
+
+            fprintf (file, "POPR RAX\n"
+                           "RET\n\n");
+            break;
+
+        case KEY_COMMA:
+            assert (0 && "TODO:");
+
     
         default:
             assert (0 && "Add new keyword to AssembleKeyword()");

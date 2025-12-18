@@ -7,7 +7,7 @@
 
 struct node_t;
 struct tree_t;
-struct variable_t;
+struct name_t;
 struct program_t;
 
 const char kParentDumpFolderName[] = "dump/";

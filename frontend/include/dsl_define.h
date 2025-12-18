@@ -7,8 +7,19 @@
 
 #define NUM_(num)                                                                       \
         NodeCtorAndFill (&program->ast, TYPE_CONST_NUM, {.number = num}, NULL, NULL)
+#define NAME_(idxInNamesTable)                                                          \
+        NodeCtorAndFill (&program->ast, TYPE_NAME, {.idx = idxInNamesTable}, NULL, NULL)
+#define FUNC_(left, right)                                                              \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_FUNC}, NULL, NULL)
+#define MAIN_(left, right)                                                              \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_MAIN}, NULL, NULL)
+#define RETURN_(left, right)                                                            \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_RETURN}, NULL, NULL)
 #define CONNECT_(left, right)                                                           \
         NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_CONNECT},             \
+                         left, right)
+#define COMMA_(left, right)                                                             \
+        NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_COMMA},               \
                          left, right)
 #define ADD_(left, right)                                                               \
         NodeCtorAndFill (&program->ast, TYPE_KEYWORD, {.idx = KEY_ADD},                 \

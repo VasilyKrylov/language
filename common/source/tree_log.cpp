@@ -204,8 +204,8 @@ int TreeDumpImg (program_t *program, node_t *node)
 //         case TYPE_CONST_NUM:        fprintf (graphFile, "%g", node->value.number);                      break;
 //         case TYPE_KEYWORD:   fprintf (graphFile, "%s", kKeywords[idx].name);                     break;
         // case TYPE_VARIABLE:         fprintf (graphFile, "%.*s", 
-        //                                      (int) program->variables[idx].len, 
-        //                                      program->variables[idx].name);                    break;
+        //                                      (int) program->namesTable[idx].len, 
+        //                                      program->namesTable[idx].name);                    break;
 //         case TYPE_VARIABLE:         fprintf (graphFile, "%d (\\\" \\\")", idx);   break;
 //         default:                    fprintf (graphFile, "error");                                       break;
 //     }
@@ -259,6 +259,7 @@ void TreePrefixPass (program_t *program, node_t *node, FILE *graphFile)
                                     else
                                         fprintf (graphFile, "\"%s\"", kGreen);  
                                     break;
+        case TYPE_NAME:
         case TYPE_VARIABLE:         fprintf (graphFile, "\"%s\";", kViolet);    break;
         default:                    fprintf (graphFile, "\"%s\";", kRed);       break;
     }

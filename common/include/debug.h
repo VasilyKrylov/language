@@ -40,6 +40,13 @@ enum commonErrors
 
 // FIXME:
 #ifdef PRINT_DEBUG
+    struct varInfo_t
+    {
+        const char *name;
+        const char *file;
+        int line;
+        const char *func;
+    };
     #define DEBUG_LOG(format, ...)                                          \
             do {                                                            \
                 fprintf(stderr, BLUE_BOLD_COLOR                             \

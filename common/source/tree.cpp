@@ -147,8 +147,8 @@ void TreeDelete (tree_t *tree, node_t **node)
 
     tree->size -= 1;
     
-    DEBUG_VAR ("deleted [%p]", node);
-    DEBUG_VAR ("tree->size = %lu", tree->size);
+    // DEBUG_VAR ("deleted [%p]", node);
+    // DEBUG_VAR ("tree->size = %lu", tree->size);
     
     free (*node);
     *node = NULL;

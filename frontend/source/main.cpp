@@ -7,6 +7,36 @@
 #include "tokenizator.h"
 #include "tree_load_infix.h"
 
+#define MAIN_DO_AND_CLEAR(action, clearAction)                          \
+        do                                                              \
+        {                                                               \
+            int statusMacro = action;                                   \
+            DEBUG_VAR("%d", statusMacro);                               \
+                                                                        \
+            if (statusMacro != TREE_OK)                                 \
+            {                                                           \
+                clearAction;                                            \
+                                                                        \
+                DEBUG_VAR("%d", statusMacro);                           \
+                ERROR_PRINT ("%s", "Error occured in \"" #action "\""); \
+                return 1;                                               \
+            }                                                           \
+        } while (0)
+
+#define MAIN_DO_AND_RETURN(action)                                      \
+        do                                                              \
+        {                                                               \
+            int statusMacro = action;                                   \
+            DEBUG_VAR("%d", statusMacro);                               \
+                                                                        \
+            if (statusMacro != TREE_OK)                                 \
+            {                                                           \
+                ERROR_PRINT ("%s", "Error occured in \"" #action "\""); \
+                return 1;                                               \
+            }                                                           \
+        } while (0)
+
+
 int main(int argc, char **argv)
 {
     if (argc != 2)
@@ -18,25 +48,22 @@ int main(int argc, char **argv)
 
     program_t program = {};
 
-    TREE_DO_AND_RETURN (ProgramCtor (&program));
+    MAIN_DO_AND_RETURN (ProgramCtor (&program));
+
     
-    TREE_DO_AND_CLEAR (GetTokens (argv[1], &program),
+    MAIN_DO_AND_CLEAR (GetTokens (argv[1], &program),
                        ProgramDtor (&program));
 
-    DumpTokens    (&program);
-    DumpVariables (&program.variables);
+    DumpTokens     (&program);
+    NamesTableDump (&program.namesTable);
 
-    TREE_DO_AND_CLEAR (TreeLoadInfixFromFile (&program),
+    MAIN_DO_AND_CLEAR (TreeLoadInfixFromTokens (&program),
                        ProgramDtor (&program));
 
-    TREE_DO_AND_CLEAR (TreeAstSaveToFile (&program, ktreeSaveFileName),
+    MAIN_DO_AND_CLEAR (TreeAstSaveToFile (&program, ktreeSaveFileName),
                        ProgramDtor (&program));
 
     ProgramDtor (&program);
 
     return 0;
 }
-
-
-
-

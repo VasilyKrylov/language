@@ -5,6 +5,6 @@
 #include "tree_ast.h"
 #include "tokenizator.h"
 
-int TreeLoadInfixFromFile (program_t *program);
+int TreeLoadInfixFromTokens (program_t *program);
 
 #endif // K_TREE_LOAD_INFIX

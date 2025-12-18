@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "tree.h"
+#include "stack.h"
 
 enum keywordIdxes_t
 {
@@ -31,6 +32,7 @@ enum keywordIdxes_t
     KEY_PRINT,
     KEY_CONNECT,
     KEY_COMMA,
+    // KEY_INT,
     KEY_DECLARATE,
     KEY_ASSIGN,
     KEY_IF,
@@ -38,6 +40,10 @@ enum keywordIdxes_t
     KEY_CLOSE_PARENS,
     KEY_OPEN_BRACKET,
     KEY_CLOSE_BRACKET,
+    KEY_FUNC,
+    KEY_MAIN,
+    KEY_RETURN,
+    KEY_CALL,
 };
 
 struct token_t
@@ -54,18 +60,20 @@ struct tokensArray_t
 
     size_t size = 0;
     size_t capacity = 0;
+
+    const char *fileName = NULL;
 }; // TODO: array Ctor and make it universal on void*
 
-struct variable_t
+struct name_t
 {
     char *name   = NULL;
     size_t len   = 0;
 
     size_t idx   = 0;
 };
-struct variablesTable_t
+struct namesTable_t
 {
-    variable_t *data = NULL;
+    name_t *data = NULL;
 
     size_t size = 0;
     size_t capacity = 0;
@@ -77,10 +85,14 @@ struct program_t
 
     tree_t ast = {};
 
-    variablesTable_t variables = {};
+    namesTable_t namesTable = {};
+
+    stack_t variables = {};
+    stack_t functions = {};
+
     tokensArray_t tokens = {};
 
-    char *buffer = NULL;
+    char *buffer   = NULL;
 };
 
 struct keyword_t
@@ -103,67 +115,76 @@ struct keyword_t
 
 const keyword_t kKeywords[] = 
 {
-    KEYWORD ("хз",          "uknown_keyword",  KEY_UKNOWN,         0,  0),
-    KEYWORD ("фит",         "+",               KEY_ADD,            0,  2),
-    KEYWORD ("дисс",        "-",               KEY_SUB,            0,  2),
-    KEYWORD ("хайп",        "*",               KEY_MUL,            0,  2),
-    KEYWORD ("антихайп",    "/",               KEY_DIV,            0,  2),
-    KEYWORD ("TODO",        "^",               KEY_POW,            0,  2),
-    KEYWORD ("TODO",        "log",             KEY_LOG,            1,  2),
-    KEYWORD ("TODO",        "ln",              KEY_LN,             1,  1),
-    KEYWORD ("TODO",        "sin",             KEY_SIN,            1,  1),
-    KEYWORD ("TODO",        "cos",             KEY_COS,            1,  1),
-    KEYWORD ("TODO",        "tg",              KEY_TG,             1,  1),
-    KEYWORD ("TODO",        "ctg",             KEY_CTG,            1,  1),
-    KEYWORD ("TODO",        "arcsin",          KEY_ARCSIN,         1,  1),
-    KEYWORD ("TODO",        "arccos",          KEY_ARCCOS,         1,  1),
-    KEYWORD ("TODO",        "arctg",           KEY_ARCTG,          1,  1),
-    KEYWORD ("TODO",        "arcctg",          KEY_ARCCTG,         1,  1),
-    KEYWORD ("TODO",        "sh",              KEY_SH,             1,  1),
-    KEYWORD ("TODO",        "ch",              KEY_CH,             1,  1),
-    KEYWORD ("TODO",        "th",              KEY_TH,             1,  1),
-    KEYWORD ("TODO",        "cth",             KEY_CTH,            1,  1),
-    KEYWORD ("спросить",    "input",           KEY_INPUT,          1,  0),
-    KEYWORD ("зачитать",    "print",           KEY_PRINT,          1,  1),
-    KEYWORD ("тррря",       ";",               KEY_CONNECT,        0,  0),
-    KEYWORD ("TODO",        ",",               KEY_COMMA,          0,  0),
-    KEYWORD ("представься", ":=",              KEY_DECLARATE,      0,  0),
-    KEYWORD ("стал",        "=",               KEY_ASSIGN,         0,  0),
-    KEYWORD ("биф",         "if",              KEY_IF,             0,  0),
-    KEYWORD ("(",           "(",               KEY_OPEN_PARENS,    0,  0),
-    KEYWORD (")",           ")",               KEY_CLOSE_PARENS,   0,  0),
-    KEYWORD ("йоу",         "{",               KEY_OPEN_BRACKET,   0,  0),
-    KEYWORD ("эй" ,         "}",               KEY_CLOSE_BRACKET,  0,  0),
+    KEYWORD ("хз",                       "uknown",      KEY_UKNOWN,         0,  0),
+    KEYWORD ("фит",                      "+",           KEY_ADD,            0,  2),
+    KEYWORD ("дисс",                     "-",           KEY_SUB,            0,  2),
+    KEYWORD ("хайп",                     "*",           KEY_MUL,            0,  2),
+    KEYWORD ("антихайп",                 "/",           KEY_DIV,            0,  2),
+    KEYWORD ("TODO",                     "^",           KEY_POW,            0,  2),
+    KEYWORD ("TODO",                     "log",         KEY_LOG,            1,  2),
+    KEYWORD ("TODO",                     "ln",          KEY_LN,             1,  1),
+    KEYWORD ("TODO",                     "sin",         KEY_SIN,            1,  1),
+    KEYWORD ("TODO",                     "cos",         KEY_COS,            1,  1),
+    KEYWORD ("TODO",                     "tg",          KEY_TG,             1,  1),
+    KEYWORD ("TODO",                     "ctg",         KEY_CTG,            1,  1),
+    KEYWORD ("TODO",                     "arcsin",      KEY_ARCSIN,         1,  1),
+    KEYWORD ("TODO",                     "arccos",      KEY_ARCCOS,         1,  1),
+    KEYWORD ("TODO",                     "arctg",       KEY_ARCTG,          1,  1),
+    KEYWORD ("TODO",                     "arcctg",      KEY_ARCCTG,         1,  1),
+    KEYWORD ("TODO",                     "sh",          KEY_SH,             1,  1),
+    KEYWORD ("TODO",                     "ch",          KEY_CH,             1,  1),
+    KEYWORD ("TODO",                     "th",          KEY_TH,             1,  1),
+    KEYWORD ("TODO",                     "cth",         KEY_CTH,            1,  1),
+    KEYWORD ("спросить",                 "input",       KEY_INPUT,          1,  0),
+    KEYWORD ("панчлайн",                 "print",       KEY_PRINT,          1,  1),
+    KEYWORD ("тррря",                    ";",           KEY_CONNECT,        0,  0),
+    KEYWORD ("TODO",                     ",",           KEY_COMMA,          0,  0),
+    // KEYWORD ("мс",                       "NOT_IN_AST",  KEY_INT,            0,  0),
+    KEYWORD ("представься",              ":=",          KEY_DECLARATE,      0,  0),
+    KEYWORD ("стал",                     "=",           KEY_ASSIGN,         0,  0),
+    KEYWORD ("биф",                      "if",          KEY_IF,             0,  0),
+    KEYWORD ("(",                        "(",           KEY_OPEN_PARENS,    0,  0),
+    KEYWORD (")",                        ")",           KEY_CLOSE_PARENS,   0,  0),
+    KEYWORD ("пошумим",                  "{",           KEY_OPEN_BRACKET,   0,  0),
+    KEYWORD ("воу",                      "}",           KEY_CLOSE_BRACKET,  0,  0),
+    KEYWORD ("раунд",                    "func",        KEY_FUNC,           0,  0),
+    KEYWORD ("баттл",                    "main",        KEY_MAIN,           0,  0),
+    KEYWORD ("лучше_я_сдохну_чем_стану", "return",      KEY_RETURN,         1,  1),
+    KEYWORD ("зачитать" ,                "call",        KEY_CALL,           0,  0),
 };
 const size_t kNumberOfKeywords = sizeof(kKeywords) / sizeof(keyword_t);
 
 
-int ProgramCtor                     (program_t *program);
-void ProgramDtor                    (program_t *program);
+int ProgramCtor     (program_t *program);
+void ProgramDtor    (program_t *program);
 
-const char *GetTypeName             (type_t type);
+int NamesTableCtor  (namesTable_t *namesTable);
+void NamesTableDtor (namesTable_t *namesTable);
 
-const variable_t *FindVariableByIdx     (variablesTable_t *variables, size_t idx);
-const variable_t *FindVariableByName    (variablesTable_t *variables, char *varName, size_t varNameLen);
-const keyword_t *FindKeywordByIdx       (keywordIdxes_t idx);
+const char *GetTypeName (type_t type);
+
+const name_t *NamesTableFindByIdx (namesTable_t *namesTable, size_t idx);
+const name_t *NamesTableFindByStr (namesTable_t *namesTable, char *varName, size_t varNameLen);
+const keyword_t *FindKeywordByIdx (keywordIdxes_t idx);
 
 const keyword_t *FindBuiltinFunctionByIdx (keywordIdxes_t idx);
 
+int CheckForReallocNamesTable (namesTable_t *namesTable);
 
-int CheckForReallocVariables        (variablesTable_t *namesTable);
+int NamesTableFindOrAdd (namesTable_t *namesTable, char *varName, size_t len, 
+                         size_t *idx);
 
-int FindOrAddVariable               (variablesTable_t *variables, char *varName, size_t len, 
-                                     size_t *idx);
+void TryToFindOperator (char *str, int len, type_t *type, treeDataType *value);
+void TryToFindNode     (char *str, int len, type_t *type, treeDataType *value);
 
-void TryToFindOperator              (char *str, int len, type_t *type, treeDataType *value);
-void TryToFindNode                  (char *str, int len, type_t *type, treeDataType *value);
+int TreeAstSaveToFile  (program_t *program, const char *fileName);
+int PrintNode          (FILE *file, program_t *program, node_t *node, bool exitQuotes);
 
-int TreeAstSaveToFile               (program_t *program, const char *fileName);
-int PrintNode                       (FILE *file, program_t *program, node_t *node, bool exitQuotes);
+int TreeCalculate      (program_t *program, tree_t *ast);
+double NodeCalculate   (program_t *program, node_t *node);
 
-int TreeCalculate                   (program_t *program, tree_t *ast);
-double NodeCalculate                (program_t *program, node_t *node);
+void TreeSimplify      (program_t *program, tree_t *tree);
 
-void TreeSimplify                   (program_t *program, tree_t *tree);
+void NamesTableDump    (namesTable_t *namesTable);
 
 #endif // K_TREE_AST_H

@@ -1,0 +1,28 @@
+
+Gramma              ::= Function+ '\0'
+
+Function            ::= "раунд" FuncName '(' ')' 
+                        "пошумим"
+                            Operation*
+                            "лучше_я_сдохну_чем_стану" Expression "тррря"
+                        "воу"
+FuncName            ::= Name
+
+Operation           ::= {If | "пошумим" Opeartion+ "воу" | DeclarateOrAssign | Print | Return} 
+If                  ::= "биф"  '(' E ')' Operation 
+Print               ::= "зачитать" '(' Expression ')' "тррря"
+Return              ::= "лучше_я_сдохну_чем_стану" Expression
+DeclarateOrAssign   ::= "мс " Variable  {"представься" | "стал"} Expression "тррря"
+
+Expression          ::= Term        {['фит', 'дисс']        Term}* 
+Term                ::= Power       {['антихайп', 'хайп']  Power}*
+Power               ::= PrimaryExp  {'^'  PrimaryExp}* 
+PrimaryExp          ::=  {'('  Expression ')' | Number | BuiltinFunction | Variable} 
+
+Number              ::= ['0'-'9']+{'.'['0'-'9']+}?
+BuiltinFunction     ::= "спросить" '('  ')' |
+                        ["sin", "cos", ...]  '(' Expression ')' | // Not implemented now
+                        ["log"]  '(' Expression ',' Expression')'
+
+Variable            ::= Name
+Name                ::= ['a'-'z', 'A'-'Z', '_']['a'-'z', 'A'-'Z', '0'-'9', '_']*

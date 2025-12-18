@@ -9,20 +9,30 @@
 
 #include "utils.h"
 
-int FillTokensArray (char *buffer, tokensArray_t *tokens, variablesTable_t *variables);
+int FillTokensArray (char *buffer, program_t *program);
+
+int TryToFindOperator (char **curPos, program_t *program, size_t line, size_t position);
 
 int TokenAddNumber (char **curPos, tokensArray_t *tokens, size_t line, size_t position);
 
-
-int TokenAddVariable (char **curPos, tokensArray_t *tokens, variablesTable_t *variables, 
-                    size_t line, size_t position);
+int TokenAddName (char **curPos, tokensArray_t *tokens, namesTable_t *namesTable,
+                  size_t line, size_t position);
 
 int TokenAdd (tokensArray_t *tokens, type_t type, value_t value, 
               size_t line, size_t position);
 
-
 int CheckForReallocTokens (tokensArray_t *tokens);
 
+#define LEXICAL_ERROR(format, ...)                                      \
+        {                                                               \
+            ERROR_PRINT ("%s:%lu:%lu Lexical Error - " format,          \
+                         tokens->fileName,                              \
+                         line,                                          \
+                         position,                                      \
+                         __VA_ARGS__);                                  \
+                                                                        \
+            return TREE_ERROR_SYNTAX_IN_SAVE_FILE;                      \
+        }
 
 int TokensArrayCtor (tokensArray_t *tokens)
 {
@@ -54,42 +64,10 @@ void TokensArrayDtor (tokensArray_t *tokens)
     free (tokens->data);
     tokens->data = NULL;
 
+    tokens->fileName = NULL;
+
     tokens->size     = 0;
     tokens->capacity = 0;
-}
-
-int VariablesTableCtor (variablesTable_t *variables)
-{
-    assert (variables);
-
-    const size_t kNamesTableInitCapacity = 16;
-
-    variables->size     = 0;
-    variables->capacity = kNamesTableInitCapacity;
-
-    variables->data = (variable_t *) calloc (variables->capacity, sizeof (variable_t));
-
-    if (variables->data == NULL)
-    {
-        ERROR_LOG ("Error allocating memory for variables->data - %s",
-                    strerror (errno));
-
-        return TREE_ERROR_COMMON |
-               COMMON_ERROR_ALLOCATING_MEMORY;
-    }
-
-    return TREE_OK;
-}
-
-void VariablesTableDtor (variablesTable_t *variables)
-{
-    assert (variables);
-
-    free (variables->data);
-    variables->data = NULL;
-
-    variables->size     = 0;
-    variables->capacity = 0;
 }
 
 int GetTokens (const char *fileName, program_t *program)
@@ -103,17 +81,25 @@ int GetTokens (const char *fileName, program_t *program)
         return TREE_ERROR_COMMON |
                COMMON_ERROR_READING_FILE;
 
-    TREE_DO_AND_RETURN (FillTokensArray (program->buffer, &program->tokens, &program->variables));
+    program->tokens.fileName = fileName;
+
+    TREE_DO_AND_CLEAR (FillTokensArray (program->buffer, program), 
+                       DumpTokens (program));
 
     DEBUG_LOG ("Tokens number - %lu", program->tokens.size);
 
     return TREE_OK;
 }
 
-int FillTokensArray (char *buffer, tokensArray_t *tokens, variablesTable_t *variables)
+#define IS_PREVIOUS_TOKEN_KEYWORD(keyword)                                      \
+        (program->tokens.size >= 1 &&                                           \
+         program->tokens.data[program->tokens.size - 1].type == TYPE_KEYWORD && \
+         program->tokens.data[program->tokens.size - 1].value.idx == keyword)
+
+int FillTokensArray (char *buffer, program_t *program)
 {
     assert (buffer);
-    assert (tokens);
+    assert (program);
 
     size_t line     = 1;
     size_t position = 1;
@@ -123,45 +109,68 @@ int FillTokensArray (char *buffer, tokensArray_t *tokens, variablesTable_t *vari
         curPos = SkipSpacesAndCount (curPos, &line, &position);
 
         DEBUG_STR (curPos);
+        DEBUG_VAR ("%lu", line);
+        DEBUG_VAR ("%lu", position);
+
+        char *curPosBeforeToken = curPos;
 
         // FIXME: calc position after adding correct token
 
         if (isdigit (*curPos))
         {
-            TREE_DO_AND_RETURN (TokenAddNumber (&curPos, tokens, line, position));
+            TREE_DO_AND_RETURN (TokenAddNumber (&curPos, &program->tokens, line, position));
 
             DEBUG_LOG ("After adding number: \"%s\"", curPos);
+
+            position += size_t (curPos - curPosBeforeToken);
             
             continue;
         }
 
-        bool found = false;
-
-        // FIXME: TryToFindOperator()
-        for (size_t i = 0; i < kNumberOfKeywords; i++)
+        int status = TryToFindOperator (&curPos, program, line, position);
+        if (status == TREE_OK)
         {
-            if (strncmp (curPos, kKeywords[i].name, kKeywords[i].nameLen) == 0)
-            {
-                TREE_DO_AND_RETURN (TokenAdd (tokens, TYPE_KEYWORD, {.idx = kKeywords[i].idx}, 
-                                    line, position));
-                found = true;
+            position += size_t (curPos - curPosBeforeToken) / 2; 
+            // 2 bytes per char moment. I do not want to use windows CP-1251
 
-                curPos += kKeywords[i].nameLen;
-
-                DEBUG_STR (kKeywords[i].name);
-                DEBUG_VAR ("%d", kKeywords[i].idx);
-                DEBUG_VAR ("%lu", line);
-                
-                break;
-            }
+            continue;
         }
 
-        if (found) continue;
+        TREE_DO_AND_RETURN (TokenAddName (&curPos, &program->tokens, &program->namesTable, 
+                                          line, position));
 
-        TREE_DO_AND_RETURN (TokenAddVariable (&curPos, tokens, variables, line, position));
+        position += size_t (curPos - curPosBeforeToken);
     }
 
     return TREE_OK;
+}
+
+#undef IS_PREVIOUS_TOKEN_KEYWORD
+
+int TryToFindOperator (char **curPos, program_t *program, size_t line, size_t position)
+{
+    assert (curPos);
+    assert (*curPos);
+    assert (program);
+
+    for (size_t i = 0; i < kNumberOfKeywords; i++)
+    {
+        if (strncmp (*curPos, kKeywords[i].name, kKeywords[i].nameLen) == 0)
+        {
+            TREE_DO_AND_RETURN (TokenAdd (&program->tokens, TYPE_KEYWORD, {.idx = kKeywords[i].idx}, 
+                                          line, position));
+
+            (*curPos) += kKeywords[i].nameLen;
+
+            DEBUG_STR (kKeywords[i].name);
+            DEBUG_VAR ("%d", kKeywords[i].idx);
+            DEBUG_VAR ("%lu", line);
+            
+            return TREE_OK;
+        }
+    }
+
+    return TREE_ERROR_INVALID_TOKEN;
 }
 
 int CheckForReallocTokens (tokensArray_t *tokens)
@@ -225,23 +234,21 @@ int TokenAddNumber (char **curPos, tokensArray_t *tokens, size_t line, size_t po
     return TokenAdd (tokens, TYPE_CONST_NUM, {.number = number}, line, position);
 }
 
-int TokenAddVariable (char **curPos, tokensArray_t *tokens, variablesTable_t *variables, 
-                      size_t line, size_t position)
+int TokenAddName (char **curPos, tokensArray_t *tokens, namesTable_t *namesTable,
+                  size_t line, size_t position)
 {
     assert (curPos);
     assert (*curPos);
     assert (tokens);
-    assert (variables);
+    assert (namesTable);
     
     if (!isalpha (**curPos) && **curPos != '_')
     {
-        ERROR_LOG ("line %lu, potisition %lu - Uknown token: Variables can't start with '%c'", 
-                   line, position, **curPos);
-
-        return TREE_ERROR_SYNTAX_IN_SAVE_FILE;
+        LEXICAL_ERROR ("Uknown token: Variables can't start with '%c'", 
+                       **curPos);
     }
 
-    char *varName = *curPos;
+    char *nameStr = *curPos;
         
     (*curPos)++;
 
@@ -257,11 +264,11 @@ int TokenAddVariable (char **curPos, tokensArray_t *tokens, variablesTable_t *va
 
     size_t idx = 0;
 
-    TREE_DO_AND_RETURN (FindOrAddVariable (variables, varName, size_t(*curPos - varName), &idx));
+    TREE_DO_AND_RETURN (NamesTableFindOrAdd (namesTable, nameStr, size_t(*curPos - nameStr), &idx));
 
-    TREE_DO_AND_RETURN (TokenAdd (tokens, TYPE_VARIABLE, {.idx = idx}, line, position));
+    TREE_DO_AND_RETURN (TokenAdd (tokens, TYPE_NAME, {.idx = idx}, line, position));
 
-    DumpVariables (variables);
+    NamesTableDump (namesTable);
 
     return TREE_OK;
 }
@@ -279,15 +286,21 @@ void DumpTokens (program_t *program)
         DEBUG_PRINT ("token[%lu]: \n", i);
 
         DEBUG_PRINT ("%s", "\t ");
-        PrintToken (stderr, program, token);
+        ON_DEBUG (
+            PrintToken (stderr, program, token);
+        );
         DEBUG_PRINT ("%s", "\n");
 
         DEBUG_PRINT ("\t type = %s\n", GetTypeName (token->type));
 
         if (token->type == TYPE_CONST_NUM)
+        {
             DEBUG_PRINT ("\t value.number = " VALUE_NUMBER_FSTRING, token->value.number);
+        }
         else
+        {
             DEBUG_PRINT ("\t value.idx = %lu", token->value.idx);
+        }
 
         DEBUG_PRINT ("%s", "\n");
 
@@ -296,24 +309,29 @@ void DumpTokens (program_t *program)
     }
 }
 
-void DumpVariables (variablesTable_t *variables)
+void NamesTableDump (namesTable_t *namesTable)
 {
-    assert (variables);
+    assert (namesTable);
 
-    DEBUG_PRINT ("%s", "\n========== Variables ==========\n");
+    DEBUG_PRINT ("%s", "\n========== Names Table start ==========\n");
 
-    for (size_t i = 0; i < variables->size; i++)
+    DEBUG_PRINT ("namesTable->size = %lu", namesTable->size);
+
+    for (size_t i = 0; i < namesTable->size; i++)
     {
-        variable_t *var = &variables->data[i];
+        ON_DEBUG (name_t *name = &namesTable->data[i];)
 
-        DEBUG_LOG ("variables[%lu]:", i);
-        DEBUG_LOG ("\t idx = %lu", var->idx);
-        DEBUG_LOG ("\t name = \"%s\"", var->name);
-        DEBUG_LOG ("\t len = %lu", var->len);
+        DEBUG_PRINT ("namesTable[%lu]:\n", i);
+        DEBUG_PRINT ("\t idx = %lu\n", name->idx);
+        DEBUG_PRINT ("\t name = \"%.*s\"\n", (int) name->len, name->name);
+        DEBUG_PRINT ("\t len = %lu\n", name->len);
     }
+
+    DEBUG_PRINT ("%s", "\n========== Names Table end ==========\n");
+
 }
 
-
+// FIXME: copy-paste. New function - print value based on type
 int PrintToken (FILE *file, program_t *program, token_t *token)
 {
     assert (file);
@@ -334,9 +352,10 @@ int PrintToken (FILE *file, program_t *program, token_t *token)
                 fprintf (file, "%s", keyword->standardName);                  
             break;
         }
+        case TYPE_NAME:         
         case TYPE_VARIABLE:         
         {
-            const variable_t *var = FindVariableByIdx (&program->variables, (size_t) token->value.idx);
+            const name_t *var = NamesTableFindByIdx (&program->namesTable, (size_t) token->value.idx);
 
             if (var == NULL)
                 fprintf (file, "NULL variable");

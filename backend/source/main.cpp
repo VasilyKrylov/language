@@ -27,7 +27,7 @@ int main(int argc, char **argv)
 
     ProgramDtor (&program);
 
-    DEBUG_PRINT ("\n\n%s is returned 0!\n", argv[0]);
+    DEBUG_PRINT ("\n%s returned 0!\n", argv[0]);
 
     return 0;
 }

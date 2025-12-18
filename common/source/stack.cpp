@@ -59,14 +59,14 @@ void StackPrintError (int error)
     if (error & DATA_CANARY_END_OVERWRITE)	    printf("%s", "End of the data field has been overwritten\n");
     if (error & POISON_VALUE_IN_DATA)	        printf("%s", "There is poison value in stack\n");
     if (error & WRONG_VALUE_IN_POISON)	        printf("%s", "There is NOT poison value in unused section of stack\n");
-    if (error & TRYING_TO_PKEY_FROM_EMPTY_STACK)	printf("%s", "Stack is empty, but StackPop() called\n");
+    if (error & TRYING_TO_POP_FROM_EMPTY_STACK)	printf("%s", "Stack is empty, but StackPop() called\n");
 
     printf("%s", COLOR_END);
 }
 
 int StackError (stack_t *stack)
 {
-    int error = OK;
+    int error = STACK_OK;
 
     if (stack == NULL)
     {
@@ -129,7 +129,7 @@ int StackError (stack_t *stack)
 }
 
 int StackCtor (stack_t *stack, size_t capacity
-               ON_DEBUG (, varInfoStack_t varInfo))
+               ON_DEBUG (, varInfo_t varInfo))
 {
     if (stack == NULL)
         return NULL_STRUCT; // FIXME: assert();
@@ -150,6 +150,7 @@ int StackCtor (stack_t *stack, size_t capacity
 #ifdef STACK_CANARY
     *GetCanaryStart (stack) = CANARY;
     *GetCanaryEnd (stack)   = CANARY;
+
 #endif // STACK_CANARY
 
 #ifdef PRINT_DEBUG
@@ -166,7 +167,7 @@ int StackCtor (stack_t *stack, size_t capacity
 int StackPush (stack_t *stack, stackDataType value)
 {
     int error = STACK_ERROR (stack);
-    if (error != OK) 
+    if (error != STACK_OK) 
         return error;
 
     if (stack->size == stack->capacity)
@@ -206,11 +207,11 @@ int StackPush (stack_t *stack, stackDataType value)
 int StackPop (stack_t *stack, stackDataType *value)
 {
     int error = STACK_ERROR (stack);
-    if (error != OK) 
+    if (error != STACK_OK) 
         return error;
 
     if (stack->size == 0)
-        return TRYING_TO_PKEY_FROM_EMPTY_STACK;
+        return TRYING_TO_POP_FROM_EMPTY_STACK;
 
     if (stack->size * 4 <= stack->capacity)
     {
@@ -240,18 +241,22 @@ int StackPop (stack_t *stack, stackDataType *value)
     return STACK_ERROR (stack);
 }
 
-int StackTop (stack_t *stack, stackDataType *value)
+int StackFind (stack_t *stack, stackDataType value)
 {
+    assert (stack);
+
     int error = STACK_ERROR (stack);
-    if (error != OK) 
+    if (error != STACK_OK) 
         return error;
 
-    if (stack->size == 0)
-        return TRYING_TO_TKEY_FROM_EMPTY_STACK;
+    for (size_t i = 0; i < stack->size; i++)
+    {
+        if (stack->data[i] == value)
+            return STACK_OK;
+    }
 
-    *value = stack->data[stack->size - 1];
-    
-    return STACK_ERROR (stack);
+    return STACK_ERROR (stack) |
+           STACK_ERROR_VALUE_NOT_FOUND;
 }
 
 int StackDtor (stack_t *stack)
@@ -275,11 +280,10 @@ int StackDtor (stack_t *stack)
 void StackDump (stack_t *stack, const char *comment,
                 const char *file, int line, const char * func)
 {
-    if (stack == NULL)
-    {
-        ERROR_LOG ("%s", "stack is NULL");
-        return;
-    }
+    assert (stack);
+    assert (comment);
+    assert (file);
+    assert (func);
     
     printf("stack<%s> [%p]", stackDataTypeStr, stack);
 #ifdef PRINT_DEBUG

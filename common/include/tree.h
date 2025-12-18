@@ -42,13 +42,6 @@ const char ktreeSaveFileName[]       = "ast_forest/tree.ast";
 
 #ifdef PRINT_DEBUG
 
-struct varInfo_t
-{
-    const char *name = NULL;
-    const char *file = NULL;
-    int line         = 0;
-    const char *func = NULL;
-};
 // NOTE Change name to VarInfoTree_t (?)
 #define TREE_CTOR(treeName, log)                    \
         TreeCtor (treeName, log,                    \
@@ -79,10 +72,11 @@ struct varInfo_t
 
 enum type_t // NOTE: maybe move to tree_ast.h
 {
-    TYPE_UKNOWN         = 0,
-    TYPE_CONST_NUM      = 1,
-    TYPE_KEYWORD        = 2,
-    TYPE_VARIABLE       = 3,
+    TYPE_UKNOWN,
+    TYPE_CONST_NUM,
+    TYPE_KEYWORD,
+    TYPE_VARIABLE, // FIXME: maybe remove
+    TYPE_NAME,
 };
 
 typedef int valueNumber_t;
@@ -132,6 +126,7 @@ enum treeError_t
     TREE_ERROR_NODE_NOT_FOUND           = 1 << 9,
     TREE_ERROR_INVALID_TOKEN            = 1 << 10,
 
+    TREE_ERROR_STACK                    = 1 << 30,
     TREE_ERROR_COMMON                   = 1 << 31
 };
 

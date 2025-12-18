@@ -109,7 +109,7 @@ int TreeLoadNodeAndFill (program_t *program, node_t **node,
     assert (*curPos);
 
     DEBUG_PRINT ("%s", "\n===== CREATING NEW NODE =====\n");
-    DEBUG_STR (*curPos);
+    // DEBUG_STR (*curPos);
 
     (*curPos)++; // move after '('
 
@@ -127,7 +127,7 @@ int TreeLoadNodeAndFill (program_t *program, node_t **node,
     
     *curPos += readBytes;
     // *curPos += 1; // because it can be '\0', not space
-    DEBUG_STR (*curPos);
+    // DEBUG_STR (*curPos);
     *curPos = SkipSpaces (*curPos);
     
     // DEBUG_STR (data);
@@ -183,7 +183,7 @@ int TreeLoadDetectNodeType  (program_t *program, char **curPos, int *readBytes,
 
         size_t idx = 0;
         TREE_DO_AND_RETURN (
-            FindOrAddVariable (&program->variables, *curPos, (size_t) *readBytes, &idx)
+            NamesTableFindOrAdd (&program->namesTable, *curPos, (size_t) *readBytes, &idx)
         );
 
         (*readBytes)++;
@@ -212,7 +212,7 @@ int TreeLoadDetectNodeType  (program_t *program, char **curPos, int *readBytes,
     }
 
     DEBUG_LOG ("%s", "After detecting type:");
-    DEBUG_STR (*curPos);
+    // DEBUG_STR (*curPos);
     DEBUG_LOG ("readBytes = %d", *readBytes);
     DEBUG_LOG ("type = %d", *type);
     DEBUG_LOG ("value.idx    = %lu", value->idx);

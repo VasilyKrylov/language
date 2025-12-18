@@ -7,6 +7,7 @@ CPP_FILES = source/main.cpp						\
 			../common/source/debug.cpp			\
 			../common/source/utils.cpp			\
 			../common/source/float_math.cpp		\
+			../common/source/stack.cpp			\
 
 
 .PHONY: all

@@ -8,3 +8,4 @@ tree.txt
 frontend/frontend
 log.txt
 ast_forest/*
+middle_end_prog

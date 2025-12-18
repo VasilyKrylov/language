@@ -10,6 +10,7 @@
 #include "tokenizator.h"
 #include "utils.h"
 #include "float_math.h"
+#include "stack.h"
 
 // static double NodeCalculateDoMath       (node_t *node, double leftVal, double rightVal);
 
@@ -25,10 +26,23 @@ int ProgramCtor (program_t *program)
     assert (program);
 
     TREE_DO_AND_RETURN (LogCtor (&program->log));
-    TREE_DO_AND_RETURN (VariablesTableCtor (&program->variables));
+    TREE_DO_AND_RETURN (NamesTableCtor (&program->namesTable));
     TREE_DO_AND_RETURN (TokensArrayCtor (&program->tokens));
 
-    program->buffer = NULL;
+    const size_t kDefaultStackCapacity = 16;
+
+    int status = STACK_CREATE (program->variables, kDefaultStackCapacity);
+    if (status != STACK_OK)
+        return TREE_ERROR_STACK |
+               status;
+
+    status = STACK_CREATE (program->functions, kDefaultStackCapacity);
+    if (status != STACK_OK)
+        return TREE_ERROR_STACK |
+               status;
+
+
+    program->buffer   = NULL;
 
     TREE_DO_AND_RETURN (TREE_CTOR (&program->ast, &program->log));
 
@@ -40,8 +54,11 @@ void ProgramDtor (program_t *program)
     assert (program);
 
     LogDtor (&program->log);
-    VariablesTableDtor (&program->variables);
+    NamesTableDtor (&program->namesTable);
     TokensArrayDtor (&program->tokens);
+
+    StackDtor (&program->variables);
+    StackDtor (&program->functions);
 
     if (program->ast.root != NULL)
         TreeDtor (&program->ast);
@@ -50,6 +67,41 @@ void ProgramDtor (program_t *program)
     program->buffer = NULL;
 }
 
+int NamesTableCtor (namesTable_t *namesTable)
+{
+    assert (namesTable);
+
+    const size_t kNamesTableInitCapacity = 16;
+
+    namesTable->size     = 0;
+    namesTable->capacity = kNamesTableInitCapacity;
+
+    namesTable->data = (name_t *) calloc (namesTable->capacity, sizeof (name_t));
+
+    if (namesTable->data == NULL)
+    {
+        ERROR_LOG ("Error allocating memory for namesTable->data - %s",
+                    strerror (errno));
+
+        return TREE_ERROR_COMMON |
+               COMMON_ERROR_ALLOCATING_MEMORY;
+    }
+
+    return TREE_OK;
+}
+
+void NamesTableDtor (namesTable_t *namesTable)
+{
+    assert (namesTable);
+
+    free (namesTable->data);
+    namesTable->data = NULL;
+
+    namesTable->size     = 0;
+    namesTable->capacity = 0;
+}
+
+// FIXME: maybe tree_prefix_save.cpp ?
 int TreeAstSaveToFile (program_t *program, const char *fileName)
 {
     assert (program);
@@ -131,8 +183,8 @@ int PrintNode (FILE *file, program_t *program, node_t *node, bool exitQuotes)
 
     switch (node->type)
     {
-        case TYPE_UKNOWN:           fprintf (file, "UKNOWN");                                  break;
-        case TYPE_CONST_NUM:        fprintf (file, VALUE_NUMBER_FSTRING, node->value.number);  break;
+        case TYPE_UKNOWN:       fprintf (file, "UKNOWN");                                  break;
+        case TYPE_CONST_NUM:    fprintf (file, VALUE_NUMBER_FSTRING, node->value.number);  break;
 
         case TYPE_KEYWORD:          
         {
@@ -144,12 +196,13 @@ int PrintNode (FILE *file, program_t *program, node_t *node, bool exitQuotes)
                 fprintf (file, "%s", keyword->standardName);                  
             break;
         }
+        case TYPE_NAME:         
         case TYPE_VARIABLE:         
         {
-            const variable_t *var = FindVariableByIdx (&program->variables, (size_t) node->value.idx);
+            const name_t *var = NamesTableFindByIdx (&program->namesTable, (size_t) node->value.idx);
 
             if (var == NULL)
-                fprintf (file, "NULL variable");
+                fprintf (file, "NULL variable or name");
             else
             {
                 if (exitQuotes)
@@ -177,6 +230,7 @@ const char *GetTypeName (type_t type)
         case TYPE_CONST_NUM:        return "number";
         case TYPE_KEYWORD:          return "keyword";
         case TYPE_VARIABLE:         return "variable";
+        case TYPE_NAME:             return "name";
 
         default:                    return "ERROR";
     }
@@ -214,37 +268,38 @@ void TryToFindNode (char *str, int len, type_t *type, treeDataType *value)
     }
 }
 
-const variable_t *FindVariableByName (variablesTable_t *variables, char *varName, size_t varNameLen)
+const name_t *NamesTableFindByStr (namesTable_t *namesTable, char *name, size_t nameLen)
 {
-    assert (variables);
-    assert (varName);
+    assert (namesTable);
+    assert (name);
 
-    DEBUG_LOG ("varName = \"%.*s\"", (int) varNameLen, varName);
-    DEBUG_VAR ("%lu", varNameLen);
+    DEBUG_LOG ("nameStr = \"%.*s\"", (int) nameLen, name);
+    DEBUG_VAR ("%lu", nameLen);
 
-    for (size_t i = 0; i < variables->size; i++)
+    for (size_t i = 0; i < namesTable->size; i++)
     {
         DEBUG_VAR ("%lu", i);
-        DEBUG_PTR (variables->data[i].name);
-        DEBUG_LOG ("variables[i].name = \"%.*s\"", 
-                   (int)variables->data[i].len,
-                   variables->data[i].name);
+        DEBUG_PTR (namesTable->data[i].name);
+        DEBUG_LOG ("namesTable[i].name = \"%.*s\"", 
+                   (int)namesTable->data[i].len,
+                   namesTable->data[i].name);
         
-        if (strncmp (variables->data[i].name, varName, varNameLen) == 0)
-            return &variables->data[i];
+        if (strncmp (namesTable->data[i].name, name, nameLen) == 0)
+            return &namesTable->data[i];
     }
 
     return NULL;
 }
 
-const variable_t *FindVariableByIdx (variablesTable_t *variables, size_t idx)
+// FIXME: rename to namesTable
+const name_t *NamesTableFindByIdx (namesTable_t *namesTable, size_t idx)
 {
-    assert (variables);
+    assert (namesTable);
 
-    for (size_t i = 0; i < variables->size; i++)
+    for (size_t i = 0; i < namesTable->size; i++)
     {
-        if (variables->data[i].idx == idx)
-            return &variables->data[i];
+        if (namesTable->data[i].idx == idx)
+            return &namesTable->data[i];
     }
 
     return NULL;
@@ -273,7 +328,7 @@ const keyword_t *FindBuiltinFunctionByIdx (keywordIdxes_t idx)
 }
 
 // FIXME: copy paste
-int CheckForReallocVariables (variablesTable_t *namesTable)
+int CheckForReallocNamesTable (namesTable_t *namesTable)
 {
     assert (namesTable);
 
@@ -283,8 +338,8 @@ int CheckForReallocVariables (variablesTable_t *namesTable)
     if (namesTable->capacity == 0)
         namesTable->capacity = 1;
 
-    variable_t *newData = (variable_t *) realloc (namesTable->data, 
-                                                      namesTable->capacity * sizeof (variable_t));
+    name_t *newData = (name_t *) realloc (namesTable->data, 
+                                          namesTable->capacity * sizeof (name_t));
     
     if (newData == NULL)
     {
@@ -299,41 +354,41 @@ int CheckForReallocVariables (variablesTable_t *namesTable)
     return TREE_OK;
 }
 
-int FindOrAddVariable (variablesTable_t *variables, char *varName, size_t len, 
-                       size_t *idx)
+int NamesTableFindOrAdd (namesTable_t *namesTable, char *nameStr, size_t len, 
+                         size_t *idx)
 {
-    assert (variables);
-    assert (varName);
+    assert (namesTable);
+    assert (nameStr);
     assert (idx);
 
     DEBUG_VAR ("%lu", len);
 
-    const variable_t *variable = FindVariableByName (variables, varName, len);
+    const name_t *name = NamesTableFindByStr (namesTable, nameStr, len);
 
-    if (variable != NULL)
+    if (name != NULL)
     {
-        *idx = variable->idx;
+        *idx = name->idx;
 
         return TREE_OK;
     }
     
-    TREE_DO_AND_RETURN (CheckForReallocVariables (variables));
+    TREE_DO_AND_RETURN (CheckForReallocNamesTable (namesTable));
 
-    *idx = size_t(variables->size);
+    *idx = size_t (namesTable->size);
 
-    variables->data[*idx].name = varName;
-    variables->data[*idx].len = len;
-    variables->data[*idx].idx = *idx;
+    namesTable->data[*idx].name = nameStr;
+    namesTable->data[*idx].len = len;
+    namesTable->data[*idx].idx = *idx;
 
-    DEBUG_LOG ("%.*s", (int)variables->data[*idx].len, variables->data[*idx].name);
+    DEBUG_LOG ("%.*s", (int)namesTable->data[*idx].len, namesTable->data[*idx].name);
 
-    variables->size++;
+    namesTable->size++;
     
-    DEBUG_VAR ("%lu", variables->size);
-    DEBUG_LOG ("variable name is '%.*s'", 
-               (int)variables->data[variables->size].len, varName);
+    DEBUG_VAR ("%lu", namesTable->size);
+    DEBUG_LOG ("element name is '%.*s'", 
+               (int)namesTable->data[namesTable->size].len, nameStr);
 
-    DumpVariables (variables);
+    NamesTableDump (namesTable);
 
     return TREE_OK;
 }
@@ -610,3 +665,4 @@ node_t *NodeSimplifyTrivial (tree_t *tree, node_t *node, bool *modified)
 #undef IS_VALUE_
 
 #undef NUM_
+
